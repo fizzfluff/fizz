@@ -1,10 +1,34 @@
-<style>
-body{
-  background: black;
-  padding-top: 35vh;
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>owo.c</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="27.png" type="image/x-icon">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      position: relative;
+      font-family: 'Roboto', sans-serif; /* Apply Roboto font to the whole body */
 
-.container{
+    }
+    canvas {
+      display: block;
+    }
+    .centered-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 50px;
+      color: white;
+      text-align: center;
+      z-index: 10; /* Ensures the text is above the canvas */
+      text-shadow: 0px 0px 20px rgba(0, 0, 0, 1); /* Adds shadow to the text */
+    }
+    .container{
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -16,45 +40,189 @@ body{
   width: 200px;
   height: 100px;
   font-size: 1.5rem;
-  border: 4px solid #ED00FF;
+  border: 4px solid #000000;
   border-radius: 35px 0 35px 0px;
   background: transparent;
-  color: #ED00FF;
+  color: #000000;
   font-weight: bold;
   padding: 15px 25px;
-  transition: border-radius 1.5s, border 1.5s, color 1.5s;
+  transition: border-radius 1.5s, border 1.5s, color 1.5s, box-shadow 1.5s, text-shadow 1.5s;
+  box-shadow: 0px 0px 20px rgba(0, 0, 0, 1);
+  text-shadow: 0px 0px 20px rgba(0, 0, 0, 1);
 }
 
 .transition-btn:hover{
   cursor: pointer;
   border-radius: 0 35px 0 35px;
-  border: 4px solid #6500EF;
-  color: #6500EF;
+  border: 4px solid #ff0000;
+  color: #ff0000;
+  box-shadow: 0px 0px 20px rgb(255, 0, 0);
+  text-shadow: 0px 0px 20px rgb(255, 0, 0);
 }
 
-.sharp-btn{
-  margin:25px;
-  width: 200px;
-  height: 100px;
-  font-size: 1.5rem;
-  border: 3px solid lightcoral;
-  border-radius: 35px 0 35px 0px;
-  background: transparent;
-  color: lightcoral;
-  font-weight: bold;
-  padding: 15px 25px;
-}
-
-.sharp-btn:hover{
-  cursor: pointer;
-  border-radius: 0 35px 0 35px;
-  border: 3px solid darkcyan;
-  color: darkcyan;
-}
-</style>
+  </style>
+</head>
 <body>
-  <div class="container">
+  <div class="centered-text">
     <button class="transition-btn" onclick="window.location.href='https://fizzfluff.github.io/aboutfizz/';">About FizzFluff</button>
+    <br>
     <button class="transition-btn" onclick="window.location.href='https://fizzfluff.github.io/terminal/';">Terminal.</button>
-  </div>
+</div>
+
+  <canvas id="fluidCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById("fluidCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Canvas dimensions
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particleCount = 95; // Number of particles
+    const particles = [];
+    const viscosity = 0.99; // Friction factor to mimic fluid viscosity
+    const gravity = -0.01; // Simulated gravity force
+    const interactionRadius = 150; // Radius for particle interactions
+    const mouseForce = 0.9; // Force applied by the mouse
+    const mouseRadius = 200; // Radius of mouse interaction
+
+    let mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false };
+
+    // Array to hold image objects for particles
+    const images = [];
+    for (let i = 1; i <= 76; i++) {
+      const img = new Image();
+      img.src = `${i}.png`; // Assuming the images are in the same directory
+      images.push(img);
+    }
+
+    class Particle {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 2; // Random initial velocity
+        this.vy = (Math.random() - 0.5) * 2;
+        this.radius = 40; // Size of the particle
+        this.image = images[Math.floor(Math.random() * images.length)]; // Random image
+      }
+
+      applyForces() {
+        // Apply gravity
+        this.vy += gravity;
+
+        // Apply viscosity (dampening velocity)
+        this.vx *= viscosity;
+        this.vy *= viscosity;
+
+        // Handle boundary constraints
+        if (this.x < this.radius) this.x = this.radius;
+        if (this.x > canvas.width - this.radius) this.x = canvas.width - this.radius;
+        if (this.y < this.radius) this.y = this.radius;
+        if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
+      }
+
+      interactWith(other) {
+        const dx = this.x - other.x;
+        const dy = this.y - other.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < interactionRadius) {
+          const angle = Math.atan2(dy, dx);
+          const force = (interactionRadius - distance) / interactionRadius;
+
+          // Repel particles slightly
+          this.vx += Math.cos(angle) * force * 0.5;
+          this.vy += Math.sin(angle) * force * 0.5;
+
+          other.vx -= Math.cos(angle) * force * 0.5;
+          other.vy -= Math.sin(angle) * force * 0.5;
+        }
+      }
+
+      interactWithMouse() {
+        const dx = this.x - mouse.x;
+        const dy = this.y - mouse.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < mouseRadius) {
+          const angle = Math.atan2(dy, dx);
+          const force = (mouseRadius - distance) / mouseRadius;
+
+          // Attract particles towards the mouse if clicked, repel if not clicked
+          if (mouse.isDown) {
+            this.vx -= Math.cos(angle) * force * mouseForce * 1.5; // Attract
+            this.vy -= Math.sin(angle) * force * mouseForce * 1.5; // Attract
+          } else {
+            this.vx += Math.cos(angle) * force * mouseForce; // Repel
+            this.vy += Math.sin(angle) * force * mouseForce; // Repel
+          }
+        }
+      }
+
+      update() {
+        this.applyForces();
+        this.interactWithMouse();
+        this.x += this.vx;
+        this.y += this.vy;
+      }
+
+      draw() {
+        ctx.drawImage(this.image, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); // Draw the image
+      }
+    }
+
+    function initParticles() {
+      for (let i = 0; i < particleCount; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        particles.push(new Particle(x, y));
+      }
+    }
+
+    function updateParticles() {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+
+        // Check for interactions with other particles
+        for (let j = i + 1; j < particles.length; j++) {
+          p.interactWith(particles[j]);
+        }
+
+        p.update();
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const particle of particles) {
+        particle.draw();
+      }
+    }
+
+    function animate() {
+      updateParticles();
+      drawParticles();
+      requestAnimationFrame(animate);
+    }
+
+    // Mouse event listeners
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener("mousedown", () => {
+      mouse.isDown = true;
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      mouse.isDown = false;
+    });
+
+    initParticles();
+    animate();
+  </script>
 </body>
+</html>
