@@ -1,0 +1,234 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>a</title>
+  
+<style>
+body {
+  background: #000000;
+}
+
+
+.terminal-window {
+  text-align: left;
+  width: 1200px;
+  height: 600px;
+  border-radius: 10px;
+  margin: auto;
+  position: relative;
+}
+
+.terminal-window header {
+  background: #E0E8F0;
+  height: 30px;
+  border-radius: 8px 8px 0 0;
+  padding-left: 1125px;
+}
+
+.terminal-window header .button {
+  width: 12px;
+  height: 12px;
+  margin: 10px 4px 0 0;
+  display: inline-block;
+  border-radius: 0px;
+}
+
+.terminal-window header .button.green {
+  background: #3BB662;
+}
+
+.terminal-window header .button.yellow {
+  background: #E5C30F;
+}
+
+.terminal-window header .button.red {
+  background: #E75448;
+}
+
+.terminal-window section.terminal {
+  color: white;
+  font-family: Menlo, Monaco, "Consolas", "Courier New", "Courier";
+  font-size: 11pt;
+  background: #30353A;
+  padding: 10px;
+  box-sizing: border-box;
+  position: absolute;
+  width: 100%;
+  top: 30px;
+  bottom: 0;
+  overflow: auto;
+}
+
+.terminal-window section.terminal .typed-cursor {
+    opacity: 1;
+    -webkit-animation: blink 0.7s infinite;
+    -moz-animation: blink 0.7s infinite;
+    animation: blink 0.7s infinite;
+}
+@keyframes blink{
+    0% { opacity:1; }
+    50% { opacity:0; }
+    100% { opacity:1; }
+}
+@-webkit-keyframes blink{
+    0% { opacity:1; }
+    50% { opacity:0; }
+    100% { opacity:1; }
+}
+@-moz-keyframes blink{
+    0% { opacity:1; }
+    50% { opacity:0; }
+    100% { opacity:1; }
+}
+
+.terminal-data { display: none; }
+.terminal-window .gray { color: gray; }
+.terminal-window .green { color: green;}
+.terminal-window .red { color: red;}
+</style>
+
+  <script>
+  window.console = window.console || function(t) {};
+</script>
+<body translate="no">
+  <div class="terminal-window">
+  <header>
+    <div class="button green"></div>
+    <div class="button yellow"></div>
+    <div class="button red"></div>
+  </header>
+    
+  <section class="terminal">
+    <div class="history">
+</div>
+    $&nbsp;<span class="prompt"></span><span class="typed-cursor">|</span><span class="typed-cursor"></span><span class="typed-cursor"></span><span class="typed-cursor"></span>
+    <span class="typed-cursor"></span>
+    
+  </section>
+</div>
+  
+  
+</head>
+<!-- data -->
+  <div class="terminal-data mimik-run-output">
+ <br>Script execution<br>
+ ----------------------------------------------<br>
+ Checking dependencies <span class="gray"># ./fizz/fizz.dep</span><br><br> 
+
+ &nbsp;&nbsp;Creating files: Decompressing and starting fizzfluff.service<br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Define your priorities clearly and stick to them.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Maintain a balanced perspective and think critically.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Do not get carried away by ideologies.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X</span> <span class="gray">Cultivate healthy expectations of yourself and others.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Value relationships and connections over sacrifice.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X</span> <span class="gray">Learn from past mistakes and let go of unnecessary baggage.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X</span> <span class="gray">Be generous with what you have while building abundance.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Take accountability for your actions but don't shoulder everything.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X</span> <span class="gray">Speak with confidence but listen with intent.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X</span> <span class="gray">Pursue happiness that aligns with your purpose.</span><br>
+ &nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓</span> <span class="gray">Celebrate progress, not perfection.</span><br>
+
+ <br>
+    <span class="gray">&nbsp;---------- ----------- ------- -------- --------</span><br>
+&nbsp;&nbsp;Threads&nbsp;&nbsp;&nbsp;Processess&nbsp;&nbsp;&nbsp;Tasks&nbsp;&nbsp;&nbsp;Passed&nbsp;&nbsp;&nbsp;Failed<br>
+    <span class="gray">&nbsp;---------- ----------- ------- -------- --------</span><br>
+&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="green">✓ 6</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="red">X 5</span>     <br>
+  <br>
+&nbsp;&nbsp;Stopped (Error) in 0.16y<br>
+  <br>
+</div>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="https://www.mattboldt.com/demos/typed-js/js/typed.custom.js"></script>
+      <script id="rendered-js">
+$(function () {
+  var data = [
+  {
+    action: 'type',
+    strings: ["wget https://fizz.com/fizz/fizz^1000"],
+    output: '<span class="gray">- "/fizz" saved [180000]</span><br>&nbsp;',
+    postDelay: 1000 },
+
+  {
+    action: 'type',
+    strings: ["cd /fizz^1000"],
+    output: ' ',
+    postDelay: 1000 },
+
+  {
+    action: 'type',
+    //clear: true,
+    strings: ['fizz-start.sh^1000'],
+    output: $('.mimik-run-output').html() },
+  {
+    action: 'type',
+    strings: ['systemctl status fizzfluff^1000'],
+    output: '<span class="gray">+1 fizzfluff.service </span><span class="red">FAILED</span><span class="gray"> <br>- ERROR loading dependencies<br>- requirements for the success of the program were met.</span><br>&nbsp;',
+    postDelay: 1000 },
+  {
+    action: 'type',
+    strings: ['I am inperfect, a system failure, my mind is broken and my program does not have a definite function.^1000'],
+    output: '<span class="gray">> function: command not found</span><br>&nbsp;',
+    postDelay: 1000 },
+  {
+    action: 'type',
+    strings: ['It hurts a lot constantly, but suffering is necessary for change. ^1000'],
+    output: '<span class="gray">- I hope my blood and tears make the way for someone that seeks that change.<br>> change: command not found</span><br>&nbsp;',
+    postDelay: 1000 },
+  {
+    action: 'type',
+    strings: ["Feel free to talk to me, my discord is (fizzfluffs), I'm happy to talk and help <3^1000"],
+    postDelay: 1000 }];
+  
+
+
+
+  runScripts(data, 0);
+});
+
+function runScripts(data, pos) {
+  var prompt = $('.prompt'),
+  script = data[pos];
+  if (script.clear === true) {
+    $('.history').html('');
+  }
+  switch (script.action) {
+    case 'type':
+      // cleanup for next execution
+      prompt.removeData();
+      $('.typed-cursor').text('');
+      prompt.typed({
+        strings: script.strings,
+        typeSpeed: 30,
+        callback: function () {
+          var history = $('.history').html();
+          history = history ? [history] : [];
+          history.push('$ ' + prompt.text());
+          if (script.output) {
+            history.push(script.output);
+            prompt.html('');
+            $('.history').html(history.join('<br>'));
+          }
+          // scroll to bottom of screen
+          $('section.terminal').scrollTop($('section.terminal').height());
+          // Run next script
+          pos++;
+          if (pos < data.length) {
+            setTimeout(function () {
+              runScripts(data, pos);
+            }, script.postDelay || 1000);
+          }
+        } });
+
+      break;
+    case 'view':
+
+      break;}
+
+}
+//# sourceURL=pen.js
+    </script>
+
+  
+
+
+
+</body></html>
