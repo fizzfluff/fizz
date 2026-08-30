@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Fizz Fluff — IT &amp; Systems Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet" />
+<meta http-equiv='Cache-Control' content='no-store, no-cache, must-revalidate' />
+<style>
+  html,body{margin:0;padding:0;background:#000;color:#fff;font-family:'Courier New',ui-monospace,Consolas,Menlo,monospace;scroll-behavior:smooth;}
+  *{box-sizing:border-box;}
+
+  
+  html::-webkit-scrollbar{width:0;height:0;display:none;}
+  body::-webkit-scrollbar{width:0;height:0;display:none;}
+  html{scrollbar-width:none;-ms-overflow-style:none;}
+  body{scrollbar-width:none;-ms-overflow-style:none;}
+
+  
+  #scrollbar{position:fixed;top:0;left:0;height:6px;width:0;background:#888;z-index:100;}
+
+  
+  #bgcv{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;display:block;image-rendering:pixelated;}
+
+  
+  #page-loader{
+    position:fixed;
+    inset:0;
+    z-index:200;
+    background:#000;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+    font-family:'Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Consolas,Menlo,monospace;
+    transition:opacity .45s ease,visibility .45s ease;
+  }
+  #page-loader.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+  #loader-text{
+    margin:0 0 8px;
+    font-size:clamp(12px,1.2vw,14px);
+    letter-spacing:.2em;
+    opacity:.75;
+    text-align:center;
+    width:100%;
+  }
+  
+  #loader-bar{
+    width:min(60ch,80vw);
+    font-family:'Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Consolas,Menlo,monospace;
+    font-size:clamp(12px,1.5vw,16px);
+    line-height:1;
+    letter-spacing:0;
+    white-space:pre;
+    overflow:hidden;
+    margin:0;
+    text-align:center;
+  }
+  #loader-bar-text{
+    color:#888;
+    display:inline-block;
+  }
+
+  
+  #content{position:relative;z-index:1;}
+
+  
+  .glass{
+    background:rgba(255,255,255,0.015);
+    backdrop-filter:blur(4px) saturate(110%);
+    -webkit-backdrop-filter:blur(4px) saturate(110%);
+    box-shadow:none;
+    border:none;
+    color:#fff;
+  }
+
+  
+  .section{position:relative;min-height:100vh;display:flex;align-items:center;padding:6vh 6vw;}
+  .section-inner{width:100%;max-width:1200px;margin:0 auto;}
+
+  .panel{padding:clamp(24px,4vw,56px);border-radius:0;}
+
+  .eyebrow{font-family:'Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Consolas,Menlo,monospace;font-size:clamp(11px,1.2vw,14px);letter-spacing:.35em;text-transform:uppercase;opacity:.7;margin:0 0 14px;}
+  h1{font-family:Roboto,'Cascadia Code','JetBrains Mono',ui-monospace,Consolas,sans-serif;font-size:clamp(34px,7vw,84px);line-height:1.02;margin:0 0 18px;font-weight:700;text-shadow:0 2px 24px rgba(0,0,0,.5);}
+  h2{font-family:Roboto,'Cascadia Code','JetBrains Mono',ui-monospace,Consolas,sans-serif;font-size:clamp(24px,3.6vw,44px);line-height:1.1;margin:0 0 16px;font-weight:600;}
+  p{font-size:clamp(17px,1.8vw,20px);line-height:1.7;opacity:.92;margin:0 0 14px;}
+  .lead{font-size:clamp(17px,2vw,24px);line-height:1.6;opacity:.95;}
+
+  
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:clamp(14px,2vw,24px);margin-top:8px;}
+  .card{padding:clamp(18px,2.4vw,28px);border-radius:0;}
+  .card .ico{font-size:clamp(26px,3vw,38px);margin-bottom:12px;display:block;}
+  .card h3{font-family:Roboto,'Cascadia Code','JetBrains Mono',ui-monospace,Consolas,sans-serif;font-size:clamp(18px,2vw,24px);margin:0 0 10px;font-weight:600;}
+  .card p{font-size:clamp(15px,1.6vw,18px);line-height:1.65;margin:0;opacity:.95;}
+
+  
+  .contact-panel{position:relative;}
+  .tooling-card{position:relative;overflow:hidden;}
+  .tooling-card::before,
+  .contact-panel::before{
+    content:'*';
+    position:absolute;
+    top:4px; right:18px;
+    z-index:1;
+    font-family:'Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Consolas,Menlo,monospace;
+    font-size:44px;
+    color:rgba(255,255,255,0.95);
+    pointer-events:none;
+    transition:color .3s ease,transform .3s ease;
+  }
+  .tooling-card:hover::before,
+  .contact-panel:hover::before{
+    color:#fff;
+    transform:rotate(72deg) scale(1.3);
+  }
+  .tooling-carousel{position:absolute;inset:0;z-index:0;pointer-events:none;}
+  .tooling-track{height:100%;will-change:transform;}
+  .tooling-slide{height:100%;}
+  .tooling-slide img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    object-position:left top;
+    opacity:.5;
+    filter:brightness(.42) saturate(.8);
+    transition:opacity .3s ease,filter .3s ease;
+  }
+  #hardware-carousel .tooling-slide img{object-position:center center;}
+  .tooling-card:hover .tooling-slide img{
+    opacity:1;
+    filter:brightness(1) saturate(1);
+  }
+  .tooling-card .ico,
+  .tooling-card h3,
+  .tooling-card p{position:relative;z-index:2;}
+  .tooling-card p{text-shadow:0 1px 12px rgba(0,0,0,.9);}
+
+  .tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;}
+  .tag{padding:10px 20px;border-radius:0;font-size:clamp(16px,1.8vw,20px);background:rgba(255,255,255,.05);}
+
+  
+  #hero{min-height:100vh;text-align:center;justify-content:center;}
+  #hero .panel{max-width:900px;margin:0 auto;}
+  .scroll-hint{margin-top:34px;font-size:clamp(13px,1.4vw,16px);opacity:.7;letter-spacing:.2em;}
+  .scroll-arrow{margin:8px auto 0;font-size:clamp(18px,2.5vw,28px);line-height:1;opacity:.6;animation:arrow-bounce 1.5s ease-in-out infinite;}
+  @keyframes arrow-bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+
+  
+  @media (max-width:720px){
+    .section{padding:clamp(20px,6vw,40px) 5vw;}
+  }
+</style>
+</head>
+<body>
+<pre id='errbox' style='position:fixed;top:0;left:0;color:#f66;font-family:monospace;font-size:12px;z-index:99;white-space:pre-wrap'></pre>
+<script>window.onerror=function(m,s,l){var b=document.getElementById('errbox');if(b)b.textContent+='ERR: '+m+' @'+l+String.fromCharCode(10);};</script>
+
+<div id='page-loader' role='status' aria-live='polite' aria-label='Loading page'>
+  <p id='loader-text'>LOADING ASSETS</p>
+  <pre id='loader-bar'><span id='loader-bar-text'>[..................................................] 0%</span></pre>
+</div>
+
+<script>
+(()=>{
+  const loader=document.getElementById('page-loader');
+  const barText=document.getElementById('loader-bar-text');
+  const loaderText=document.getElementById('loader-text');
+  if(!loader||!barText)return;
+
+  const totalGifs=8;
+  const barWidth=50; 
+  let loadedGifs=0;
+  let gifsRunning=false;
+  let runStartTime=0;
+
+  function makeBar(pct){
+    const filled=Math.min(barWidth,Math.max(0,Math.round((pct/100)*barWidth)));
+    const empty=barWidth-filled;
+    const bar='█'.repeat(filled)+'░'.repeat(empty);
+    return '['+bar+'] '+(pct>100?100:pct|0)+'%';
+  }
+
+  function updateProgress(pct){
+    barText.textContent=makeBar(pct);
+  }
+
+  function hideLoader(){
+    loader.classList.add('hidden');
+    setTimeout(()=>{if(loader&&loader.parentNode)loader.parentNode.removeChild(loader);},520);
+  }
+
+  function runCheck(){
+    const elapsed=performance.now()-runStartTime;
+    if(elapsed>=1000){
+      hideLoader();
+    }else{
+      const runPct=100+(elapsed/1000)*100;
+      updateProgress(runPct);
+      requestAnimationFrame(runCheck);
+    }
+  }
+
+  function monitorGifs(){
+    const check=()=>{
+      if(!window.gifLoaded || !Array.isArray(window.gifLoaded)){
+        requestAnimationFrame(check);
+        return;
+      }
+      let count=0;
+      for(let i=0;i<window.gifLoaded.length;i++){
+        if(window.gifLoaded[i]) count++;
+      }
+      if(count!==loadedGifs){
+        loadedGifs=count;
+        const pct=(loadedGifs/totalGifs)*100;
+        updateProgress(pct);
+      }
+      if(loadedGifs<totalGifs){
+        requestAnimationFrame(check);
+      }else if(!gifsRunning){
+        gifsRunning=true;
+        runStartTime=performance.now();
+        loaderText.textContent='INITIALIZING...';
+        runCheck();
+      }
+    };
+    check();
+  }
+
+  monitorGifs();
+})();
+</script>
+
+<canvas id='bgcv'></canvas>
+
+<div id='scrollbar'></div>
+
+<div id='content'>
+
+  
+  <section class='section' id='hero'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Portfolio</p>
+        <h1>Fizz Fluff</h1>
+        <p class='lead'>IT Solutions Architect passionate about technology, turning ideas into reality..</p>
+        <div class='scroll-hint'>SCROLL TO EXPLORE</div>
+<pre class='scroll-arrow'>&#x25BC;</pre>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='intro'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>About Me</p>
+        <h2>Hi, I am Fizz Fluff</h2>
+        <p>A technology enthusiast with a passion for everything from endpoint management and networking to cloud and emerging technologies. I work in IT/Telecom, tenant management, and endpoint management, while also exploring and practicing with Kubernetes, VPS environments, cloud solutions, infrastructure and more.</p>
+        <p>I enjoy building and automating things—from workflow automation and AI solutions to networking, cybersecurity, embedded systems, and electronics. I love fixing things, experimenting with fun projects, and collecting interesting IT, networking, and electronic equipment.</p>
+        <p>I'm passionate about technology because there is always something new to learn, build, troubleshoot, or improve. Every day brings a different challenge, and I genuinely enjoy learning new things and sharing ideas with others.</p>
+        <div class='tags'>
+          <span class='tag glass'>IT / Telecom</span>
+          <span class='tag glass'>Endpoint Management</span>
+          <span class='tag glass'>Tenant Management</span>
+          <span class='tag glass'>Cloud Computing</span>
+          <span class='tag glass'>Networking</span>
+          <span class='tag glass'>Cybersecurity</span>
+          <span class='tag glass'>Automation</span>
+          <span class='tag glass'>Artificial Intelligence</span>
+          <span class='tag glass'>Infrastructure</span>
+          <span class='tag glass'>Kubernetes</span>
+          <span class='tag glass'>Embedded Systems</span>
+          <span class='tag glass'>Electronics</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='endpoint'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Management</p>
+        <h2>Endpoint and tenant Management</h2>
+        <p>Managing fleets of devices, users and organizational structure with clean, repeatable processes and the right tooling.</p>
+        <div class='cards'>
+          <div class='card glass'><span class='ico'>⌘</span><h3>Endpoint Management</h3><p>Deployment, patching, inventory and lifecycle of workstations and devices.</p></div>
+          <div class='card glass'><span class='ico'>⌬</span><h3>Organization</h3><p>Structured user, group and policy management across the organization.</p></div>
+          <div class='card glass tooling-card'>
+            <div class='tooling-carousel' id='tooling-carousel' aria-hidden='true'>
+              <div class='tooling-track' id='tooling-track'>
+                <div class='tooling-slide'><img src='IMG/intune/intune-1.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/intune/intune-2.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/intune/intune-5.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/intune/intune-3.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/intune/intune-4.png' alt='' loading='lazy'></div>
+              </div>
+            </div>
+            <span class='ico'>⚙</span><h3>Management</h3><p>Intune / Entra<br>365 Admin Center / Azure<br>Sentinel one / cisco endpoint</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='cloud'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Infrastructure</p>
+        <h2>Cloud Computing, VMs, Linux &amp; Containers</h2>
+        <p>Designing and operating scalable infrastructure across cloud, virtual machines and containerized workloads.</p>
+        <div class='cards'>
+          <div class='card glass tooling-card'>
+            <div class='tooling-carousel' id='cloud-carousel' aria-hidden='true'>
+              <div class='tooling-track' id='cloud-track'>
+                <div class='tooling-slide'><img src='IMG/CLOUD/cloud-1.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/CLOUD/cloud-2.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/CLOUD/cloud-3.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/CLOUD/cloud-4.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/CLOUD/cloud-5.png' alt='' loading='lazy'></div>
+              </div>
+            </div>
+            <span class='ico'>☁</span><h3>Infrastructure</h3><p>Cloud services, architecture and cost-aware scaling.</p>
+          </div>
+          <div class='card glass'><span class='ico'>▣</span><h3>Virtual Machines</h3><p>Virtualization, provisioning and management.</p></div>
+          <div class='card glass'><span class='ico'>◈</span><h3>Linux</h3><p>Administration, scripting and hardening on Linux.</p></div>
+          <div class='card glass'><span class='ico'>⬡</span><h3>Containers / K8s</h3><p>Docker, orchestration and Kubernetes clusters.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='automation'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Flows</p>
+        <h2>AI and Automations</h2>
+        <p>Turning repetitive work into reliable, self-running systems and leveraging AI to go further, faster.</p>
+        <div class='cards'>
+          <div class='card glass'><span class='ico'>⟳</span><h3>Automation</h3><p>Scripting and pipelines that remove manual, error-prone steps.</p></div>
+          <div class='card glass'><span class='ico'>✦</span><h3>AI Integration</h3><p>Applying AI tools to real workflows and everyday problems.</p></div>
+          <div class='card glass tooling-card'>
+            <div class='tooling-carousel' id='efficiency-carousel' aria-hidden='true'>
+              <div class='tooling-track' id='efficiency-track'>
+                <div class='tooling-slide'><img src='IMG/agents/agents-1.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/agents/agents-2.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/agents/agents-3.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/agents/agents-4.png' alt='' loading='lazy'></div>
+              </div>
+            </div>
+            <span class='ico'>≡</span><h3>Flows</h3><p>Measurable gains in speed, reliability and consistency.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='networking'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Connections</p>
+        <h2>Networking and Cybersecurity</h2>
+        <p>Building and protecting networks — from routing and switching to security posture and defense.</p>
+        <div class='cards'>
+          <div class='card glass tooling-card'>
+            <div class='tooling-carousel' id='administration-carousel' aria-hidden='true'>
+              <div class='tooling-track' id='administration-track'>
+                <div class='tooling-slide'><img src='IMG/network/network-1.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/network/network-2.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/network/network-3.png' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/network/network-4.png' alt='' loading='lazy'></div>
+              </div>
+            </div>
+            <span class='ico'>⊞</span><h3>Connections</h3><p>Layered security and best-practice posture.</p>
+          </div>
+          <div class='card glass'><span class='ico'>⟷</span><h3>Networking</h3><p>Routing, switching, wireless and network design.</p></div>
+          <div class='card glass'><span class='ico'>⊡</span><h3>Cybersecurity</h3><p>Hardening, monitoring and incident response.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='embedded'>
+    <div class='section-inner'>
+      <div class='panel glass'>
+        <p class='eyebrow'>Hardware</p>
+        <h2>Embedded Systems and Electronics</h2>
+        <p>Hands-on work with microcontrollers, sensors and electronics — writing code that interacts with the physical world.</p>
+        <div class='cards'>
+          <div class='card glass'><span class='ico'>⌘</span><h3>Embedded Coding</h3><p>Firmware and low-level code for microcontrollers.</p></div>
+          <div class='card glass'><span class='ico'>∿</span><h3>Electronics</h3><p>Circuit design, prototyping and soldering.</p></div>
+          <div class='card glass tooling-card'>
+            <div class='tooling-carousel' id='hardware-carousel' aria-hidden='true'>
+              <div class='tooling-track' id='hardware-track'>
+                <div class='tooling-slide'><img src='IMG/hardware/hardware-1.jpg' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/hardware/hardware-2.jpg' alt='' loading='lazy'></div>
+                <div class='tooling-slide'><img src='IMG/hardware/hardware-3.jpg' alt='' loading='lazy'></div>
+              </div>
+            </div>
+            <span class='ico'>▰</span><h3>Hardware</h3><p>Bringing ideas to life with electronics.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class='section' id='contact'>
+    <div class='section-inner'>
+      <div class='panel glass contact-panel'>
+        <p class='eyebrow'>Contact</p>
+        <h2>Let's Get in Touch</h2>
+        <p>Feel free to reach out — I love talking, listening to others and troubleshooting.</p>
+        <div class='tags'>
+          <a class='tag glass' href='https://vrchat.com/home/user/usr_fc3fdc18-f953-4faa-a979-0c05dca131ac' target='_blank' rel='noopener'>Vrchat - Fizz Fluff</a>
+          <a class='tag glass' href='https://discord.com/users/1194990923990454315' target='_blank' rel='noopener'>Discord - fizzfluff</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="gifcodec.min.js"></script>
+<script>
+(()=>{
+  function initVerticalCarousel(trackId,speedMs){
+    const track=document.getElementById(trackId);
+    if(!track)return;
+    const slides=Array.from(track.children);
+    if(slides.length<1)return;
+
+    
+    const firstClone=slides[0].cloneNode(true);
+    track.appendChild(firstClone);
+
+    let index=0;
+
+    function goTo(i,animated){
+      track.style.transition=animated?'transform 0.75s ease-in-out':'none';
+      track.style.transform='translateY(-'+(i*100)+'%)';
+    }
+
+    goTo(0,false);
+
+    setInterval(()=>{
+      index+=1;
+      goTo(index,true);
+      if(index===slides.length){
+        setTimeout(()=>{
+          index=0;
+          goTo(index,false);
+        },780);
+      }
+    },speedMs);
+  }
+
+  initVerticalCarousel('tooling-track',3400);
+  initVerticalCarousel('cloud-track',3500);
+  initVerticalCarousel('efficiency-track',3600);
+  initVerticalCarousel('administration-track',3650);
+  initVerticalCarousel('hardware-track',3700);
+})();
+
+(()=>{
+  
+  const canvas=document.getElementById('bgcv');
+  const ctx=canvas.getContext('2d',{alpha:false});
+  const NOISE_ATLAS=" .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+  const GRAY_GRAD=[[0,0,0],[5,5,6],[9,9,11],[14,14,18],[20,20,24],[27,27,32],[34,34,41],[43,43,51],[53,53,62],[65,65,76],[78,78,90],[91,91,102],[105,105,117]];
+  const speed=0.025;
+  const warp=35+Math.random()*35;
+  let W=0,H=0,cols=0,rows=0,CELL=14;
+  let cellCentersX,cellCentersY,cellThresh;
+
+  const F2=0.5*(Math.sqrt(3.0)-1.0);
+  const G2=(3.0-Math.sqrt(3.0))/6.0;
+  const grad2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+  const perm=new Uint8Array(512);
+  const permMod8=new Uint8Array(512);
+  (function initPerm(){
+    const p=new Uint8Array(256);
+    for(let i=0;i<256;i++)p[i]=i;
+    let s=Math.random()*999999;
+    for(let i=255;i>0;i--){s=(s*9301+49297)%233280;const j=Math.floor((s/233280)*(i+1));const tmp=p[i];p[i]=p[j];p[j]=tmp;}
+    for(let i=0;i<512;i++){perm[i]=p[i&255];permMod8[i]=perm[i]%8;}
+  })();
+  function simplex2(xin,yin){
+    let n0,n1,n2;
+    const s=(xin+yin)*F2;const i=Math.floor(xin+s);const j=Math.floor(yin+s);
+    const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;
+    const i1=x0>y0?1:0;const j1=x0>y0?0:1;
+    const x1=x0-i1+G2,y1=y0-j1+G2;const x2=x0-1.0+2.0*G2,y2=y0-1.0+2.0*G2;
+    const ii=i&255,jj=j&255;
+    const gi0=permMod8[ii+perm[jj]];const gi1=permMod8[ii+i1+perm[jj+j1]];const gi2=permMod8[ii+1+perm[jj+1]];
+    let t0=0.5-x0*x0-y0*y0;n0=t0<0?0.0:(t0*=t0,t0*t0*(grad2[gi0][0]*x0+grad2[gi0][1]*y0));
+    let t1=0.5-x1*x1-y1*y1;n1=t1<0?0.0:(t1*=t1,t1*t1*(grad2[gi1][0]*x1+grad2[gi1][1]*y1));
+    let t2=0.5-x2*x2-y2*y2;n2=t2<0?0.0:(t2*=t2,t2*t2*(grad2[gi2][0]*x2+grad2[gi2][1]*y2));
+    return 70.0*(n0+n1+n2);
+  }
+  function smoothWaveNoise(x,y,t){
+    const s=0.002;const n1=simplex2(x*s+t*0.02,y*s-t*0.03);const warp1=250;
+    const x1=x+n1*warp1;const y1=y+n1*warp1;
+    const s2=0.005;const n2=simplex2(x1*s2-t*0.04,y1*s2+t*0.05);const warp2=120;
+    const x2=x1+n2*warp2;const y2=y1+n2*warp2;
+    const s3=0.01;const n3=simplex2(x2*s3+t*0.06,y2*s3-t*0.07);
+    return(n1*0.5+n2*0.3+n3*0.2);
+  }
+  function flow(x,y,t){
+    const a=smoothWaveNoise(x*0.7,y*0.7,t);
+    return{x:Math.cos(a*3.14159+t*0.12)*warp,y:Math.sin(a*3.14159-t*0.12)*warp};
+  }
+  function lerp(a,b,t){return a+(b-a)*t;}
+
+  function resize(){
+    W=canvas.width=window.innerWidth;
+    H=canvas.height=window.innerHeight;
+    CELL=Math.max(10,Math.floor(Math.min(W,H)/65)); 
+    cols=Math.max(1,Math.floor(W/CELL));
+    rows=Math.max(1,Math.floor(H/CELL));
+    ctx.font=CELL+'px monospace';
+    ctx.textBaseline='middle';
+    ctx.textAlign='center';
+    
+    cellCentersX=new Float32Array(cols);
+    cellCentersY=new Float32Array(rows);
+    for(let gx=0;gx<cols;gx++) cellCentersX[gx]=gx*CELL+CELL/2;
+    for(let gy=0;gy<rows;gy++) cellCentersY[gy]=gy*CELL+CELL/2;
+    
+    cellThresh=new Float32Array(cols*rows);
+    for(let gy=0;gy<rows;gy++){
+      for(let gx=0;gx<cols;gx++){
+        const seed=Math.abs(gx*73856093 ^ gy*19349663);
+        const cellRand=(seed%1000)/1000;
+        cellThresh[gy*cols+gx]=Math.pow(cellRand,1.5);
+      }
+    }
+  }
+  window.addEventListener('resize',resize);
+  window.addEventListener('orientationchange',resize);
+  resize();
+
+  
+  const atlasLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){
+    const b=i/255;
+    atlasLUT[i]=Math.min(NOISE_ATLAS.length-1,Math.floor(b*(NOISE_ATLAS.length-1)*0.9));
+  }
+  
+  const grayLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){
+    const b=i/255;
+    grayLUT[i]=Math.min(GRAY_GRAD.length-1,Math.floor(b*(GRAY_GRAD.length-1)*0.85));
+  }
+  
+  const spotlightLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){
+    const b=i/255;
+    spotlightLUT[i]=Math.min(NOISE_ATLAS.length-1,Math.floor((b+0.5)*(NOISE_ATLAS.length-1)*0.95));
+  }
+
+  
+  
+  
+  const GIFS=[
+    "gifs/hero.gif","gifs/intro.gif","gifs/endpoint.gif",
+    "gifs/containers.gif","gifs/automations.gif",
+    "gifs/networking.gif",
+    "gifs/embedded.gif",
+    "gifs/contact.gif"
+  ];
+  
+  
+  
+  const gifFrames=GIFS.map(()=>null); 
+  const gifDelay=GIFS.map(()=>[]);    
+  const gifCur=GIFS.map(()=>0);       
+  const gifAcc=GIFS.map(()=>0);       
+  const gifLoaded=GIFS.map(()=>false);
+  window.gifLoaded=gifLoaded; 
+
+  
+  function loadGif(idx){
+    if(gifLoaded[idx])return;
+    fetch(GIFS[idx]).then(r=>r.arrayBuffer()).then(buf=>{
+      let reader;
+      try{reader=new GifReader(new Uint8Array(buf));}
+      catch(e){console.warn('GIF decode failed',GIFS[idx],e);gifLoaded[idx]=true;return;}
+      const w=reader.width,h=reader.height;
+      const n=reader.numFrames();
+      const bufRGBA=new Uint8ClampedArray(w*h*4); 
+      const frames=new Array(n);
+      const delays=new Array(n);
+      let prevRect=null,prevDispose=1;
+      for(let f=0;f<n;f++){
+        const info=reader.frameInfo(f);
+        if(prevDispose===2&&prevRect){
+          
+          for(let yy=prevRect.y;yy<prevRect.y+prevRect.h;yy++){
+            for(let xx=prevRect.x;xx<prevRect.x+prevRect.w;xx++){
+              const p=(yy*w+xx)*4;bufRGBA[p]=bufRGBA[p+1]=bufRGBA[p+2]=bufRGBA[p+3]=0;
+            }
+          }
+        }
+        
+        reader.decodeAndBlitFrameRGBA(f,bufRGBA);
+        frames[f]=new Uint8ClampedArray(bufRGBA);
+        delays[f]=Math.max(30,(info.delay||5)*10); 
+        prevRect={x:info.x,y:info.y,w:info.width,h:info.height};
+        prevDispose=info.disposal;
+      }
+      gifFrames[idx]=frames;
+      
+      frames.sw=w;frames.sh=h;
+      
+      const SAMPLE_W=120;
+      const sh2=Math.max(1,Math.round(SAMPLE_W*h/w));
+      frames.sampleW=SAMPLE_W;frames.sampleH=sh2;
+      gifDelay[idx]=delays;
+      gifCur[idx]=0;
+      gifLoaded[idx]=true;
+    }).catch(e=>{console.warn('GIF load failed',GIFS[idx],e);gifLoaded[idx]=true;});
+  }
+  GIFS.forEach((s,i)=>loadGif(i));
+
+  
+  let lastAdvance=performance.now();
+  function advanceGifs(ms){
+    const dt=Math.min(120,ms-lastAdvance);lastAdvance=ms;
+    for(let i=0;i<GIFS.length;i++){
+      if(!gifLoaded[i]||!gifFrames[i]||gifFrames[i].length<2)continue;
+      const d=gifDelay[i];
+      let cur=gifCur[i],acc=gifAcc[i];
+      acc+=dt;let guard=0;
+      while(acc>=d[cur]&&guard++<400){
+        acc-=d[cur];cur=(cur+1)%gifFrames[i].length;
+      }
+      gifCur[i]=cur;gifAcc[i]=acc;
+    }
+  }
+
+  
+  const gifCvs=GIFS.map(()=>{const c=document.createElement('canvas');c.width=120;c.height=90;return c;});
+  const gifData=GIFS.map(()=>null);
+  const gifDataIdx=GIFS.map(()=>-1); 
+  const gifBright=GIFS.map(()=>255); 
+  const grayBoost=[210,330,186,168,277,111,17,45];
+
+  let lastSample=0;
+  
+  
+  function sampleOne(idx){
+    const frames=gifFrames[idx];
+    if(!frames||!frames.length){gifData[idx]=null;return;}
+    const ci=gifCur[idx];
+    if(gifDataIdx[idx]===ci)return; 
+    const f=frames[ci];
+    const sw=frames.sw||1600,sh2=frames.sh||1200;
+    const w=frames.sampleW||120,h2=frames.sampleH||90; 
+    const c=gifCvs[idx];
+    if(c.width!==w||c.height!==h2){c.width=w;c.height=h2;}
+    if(gifData[idx]===null||gifData[idx].length!==w*h2*4)gifData[idx]=new Uint8ClampedArray(w*h2*4);
+    const out=gifData[idx];
+    for(let y=0;y<h2;y++){
+      const sy=Math.min(sh2-1,(y/h2*sh2)|0);
+      for(let x=0;x<w;x++){
+        const sx=Math.min(sw-1,(x/w*sw)|0);
+        const sp=(sy*sw+sx)*4,dp=(y*w+x)*4;
+        out[dp]=f[sp];out[dp+1]=f[sp+1];out[dp+2]=f[sp+2];out[dp+3]=f[sp+3];
+      }
+    }
+    gifDataIdx[idx]=ci;
+    let mx=1;
+    for(let i=0;i<out.length;i+=4){const m=Math.max(out[i],out[i+1],out[i+2]);if(m>mx)mx=m;}
+    gifBright[idx]=mx;
+  }
+  function sampleGifs(ms){
+    if(ms-lastSample<40)return;
+    lastSample=ms;
+    for(let i=0;i<GIFS.length;i++)sampleOne(i);
+  }
+  function gifColor(idx,px,py,b){
+    const d=gifData[idx];
+    if(!d)return null;
+    const w=gifCvs[idx].width,hh=gifCvs[idx].height;
+    
+    
+    const nx=(px+CELL/2)/W, ny=(py+CELL/2)/H;
+    const vasp=W/H, sasp=w/hh;
+    let u,v;
+    if(sasp>vasp){
+      
+      const scale=1/(sasp/vasp); 
+      const half=(1-scale)/2;
+      u=half+scale*nx;
+      v=ny;
+    }else{
+      
+      const scale=1/(vasp/sasp);
+      const half=(1-scale)/2;
+      u=nx;
+      v=half+scale*ny;
+    }
+    const uu=Math.min(w-1,(u*w)|0);
+    const vv=Math.min(hh-1,(v*hh)|0);
+    const i=(vv*w+uu)*4;
+    let r=d[i],g=d[i+1],bl=d[i+2];
+    
+    const mx=gifBright[idx]||1;
+    const lift=255/mx;
+    r=Math.min(255,r*lift);g=Math.min(255,g*lift);bl=Math.min(255,bl*lift);
+    
+    
+    const sat=(Math.max(r,g,bl)-Math.min(r,g,bl))/255;
+    const tint=1-sat;
+    if(tint>0.35&&grayBoost[idx]!==undefined){
+      const h=grayBoost[idx];
+      const v=Math.max(r,g,bl)/255;
+      const s=0.8;
+      const c=v*s,hp=((h%360)+360)%360/60,x=c*(1-Math.abs(hp%2-1));
+      let nr=0,ng=0,nb=0;
+      if(hp<1){nr=c;ng=x;}else if(hp<2){nr=x;ng=c;}
+      else if(hp<3){ng=c;nb=x;}else if(hp<4){ng=x;nb=c;}
+      else if(hp<5){nr=x;nb=c;}else{nr=c;nb=x;}
+      const m=v-c;
+      const tr=(nr+m)*255,tg=(ng+m)*255,tb=(nb+m)*255;
+      r=lerp(r,tr,tint);g=lerp(g,tg,tint);bl=lerp(bl,tb,tint);
+    }
+    
+    const lum2=0.299*r+0.587*g+0.114*bl;
+    r=r+(r-lum2)*1.3; g=g+(g-lum2)*1.3; bl=bl+(bl-lum2)*1.3;
+    const floor=30;
+    r=r*0.5+floor*(0.3+0.7*b); g=g*0.5+floor*(0.3+0.7*b); bl=bl*0.5+floor*(0.3+0.7*b);
+    const boost=0.9+b*1.1;
+    return [Math.min(255,r*boost),Math.min(255,g*boost),Math.min(255,bl*boost)];
+  }
+
+  
+  let pos=0,posTarget=0,EASE=2.2;
+  const sections=Array.from(document.querySelectorAll('.section'));
+  function updateSection(){
+    const vh=window.innerHeight;
+    let best=0,bestScore=-1;
+    sections.forEach((sec,i)=>{
+      const r=sec.getBoundingClientRect();
+      const visible=Math.min(r.bottom,vh)-Math.max(r.top,0);
+      if(visible>bestScore){bestScore=visible;best=i;}
+    });
+    posTarget=(best%GIFS.length)/Math.max(1,GIFS.length-1);
+  }
+  window.addEventListener('scroll',updateSection,{passive:true});
+  window.addEventListener('resize',updateSection);
+  updateSection();
+
+  
+  const scrollbar=document.getElementById('scrollbar');
+  function updateScrollbar(){
+    const doc=document.documentElement;
+    const max=doc.scrollHeight-window.innerHeight;
+    const p=max>0?(window.scrollY||doc.scrollTop)/max:0;
+    scrollbar.style.width=(p*100)+'%';
+  }
+  window.addEventListener('scroll',updateScrollbar,{passive:true});
+  window.addEventListener('resize',updateScrollbar);
+  updateScrollbar();
+
+  
+  setInterval(()=>advanceGifs(performance.now()),70);
+
+  
+  let mouseX=-9999,mouseY=-9999;
+
+  window.addEventListener('mousemove',e=>{
+    mouseX=e.clientX;
+    mouseY=e.clientY;
+  });
+  window.addEventListener('mouseleave',()=>{
+    mouseX=-9999;
+    mouseY=-9999;
+  });
+
+  let lastTime=0;
+  const TARGET_FPS=30;
+  const FRAME_TIME=1000/TARGET_FPS;
+  let lastFrameTime=0;
+  
+  function drawFrame(t){
+    
+    if(t - lastFrameTime < FRAME_TIME) {
+      requestAnimationFrame(drawFrame);
+      return;
+    }
+    lastFrameTime=t;
+    const timeSec=t*0.001;
+    const dt=Math.min(0.05,timeSec-(lastTime||timeSec));
+    lastTime=timeSec;
+    const flowTime=timeSec*speed*60;
+    const warpedTime=flowTime+Math.sin(flowTime*0.101)*2+Math.cos(flowTime*0.0707)*1.5;
+
+    
+    pos+=(posTarget-pos)*Math.min(1,dt*EASE);
+    if(Math.abs(pos-posTarget)<1e-4)pos=posTarget;
+
+    advanceGifs(t);
+    sampleGifs(t);
+    
+    const n=GIFS.length;
+    const fi=pos*(n-1);
+    const iA=Math.floor(fi)%n, iB=(iA+1)%n;
+    const mix=fi-Math.floor(fi);
+    ctx.fillStyle='#050505';
+    ctx.fillRect(0,0,W,H);
+
+    
+    const sr=75, sr2=sr*sr;
+    
+    for(let gy=0;gy<rows;gy++){
+      const py=gy*CELL;
+      const centerY=cellCentersY[gy];
+      const f1y=flow(0,py,warpedTime).y; 
+      
+      for(let gx=0;gx<cols;gx++){
+        const px=gx*CELL;
+        const centerX=cellCentersX[gx];
+        
+        
+        const f1=flow(px,0,warpedTime); 
+        const f2x=flow(px+f1.x,0,warpedTime+1.5).x;
+        const f2y=flow(0,py+f1y,warpedTime+1.5).y;
+        const sx=px+f1.x+f2x*0.7;
+        const sy=py+f1y+f2y*0.7;
+        
+        const n2=smoothWaveNoise(sx,sy,warpedTime);
+        const brightnessVal=(Math.tanh(n2)+1)*0.5;
+        
+        const contrastVal=brightnessVal<0.5
+          ? 0.5*(brightnessVal*brightnessVal/0.5)+0.5*brightnessVal
+          : 0.5*(1-(1-brightnessVal)*(1-brightnessVal)/0.5)+0.5*brightnessVal;
+        const bv255=contrastVal*255|0;
+        const idx=atlasLUT[bv255];
+        let ch=NOISE_ATLAS[idx];
+
+        
+        let color=null;
+        let useB;
+        if(mix<0.1) useB=false;
+        else if(mix>0.9) useB=true;
+        else{
+          useB=(mix-0.1)/0.8 >= cellThresh[gy*cols+gx];
+        }
+        const c=useB?gifColor(iB,px,py,contrastVal):gifColor(iA,px,py,contrastVal);
+        if(c)color='rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')';
+        else{
+          const colorIdx=grayLUT[bv255];
+          const a=GRAY_GRAD[colorIdx];
+          const b2=GRAY_GRAD[Math.min(colorIdx+1,GRAY_GRAD.length-1)];
+          const f=(contrastVal*(GRAY_GRAD.length-1)*0.85)%1;
+          color='rgb('+(lerp(a[0],b2[0],f)|0)+','+(lerp(a[1],b2[1],f)|0)+','+(lerp(a[2],b2[2],f)|0)+')';
+        }
+
+        
+        let brightness=1.0;
+
+        if(mouseX>-9000){
+          const dx=centerX-mouseX;
+          const dy=centerY-mouseY;
+          const dist2=dx*dx+dy*dy;
+          
+          if(dist2<sr2){
+            const dist=Math.sqrt(dist2);
+            const intensity=Math.pow(1-dist/75, 2);
+            brightness=1.0 + intensity * 0.6;
+            
+            
+            if(dist < 15){ 
+              brightness += (1 - dist/15) * 0.4;
+            }
+            
+            
+            const spotlightIdx=spotlightLUT[bv255];
+            ch=NOISE_ATLAS[spotlightIdx];
+            
+            
+            if(dist2<6400){ 
+              
+              const centerProb=1 - Math.pow(dist/60, 1.5);
+              if(Math.random() < centerProb){
+                ch='■';
+                brightness=Math.max(brightness, 1.2);
+              }
+            }
+          }
+        }
+
+        
+        let brightColor=color;
+        if(brightness>1.001){
+          const r=parseInt(color.slice(4,color.indexOf(',')));
+          const g=parseInt(color.slice(color.indexOf(',')+1,color.lastIndexOf(',')));
+          const bVal=parseInt(color.slice(color.lastIndexOf(',')+1,color.indexOf(')')));          
+          const brightR=Math.min(255, r * brightness)|0;
+          const brightG=Math.min(255, g * brightness)|0;
+          const brightB=Math.min(255, bVal * brightness)|0;
+          brightColor='rgb('+brightR+','+brightG+','+brightB+')';
+        }
+
+        
+        if(brightness > 1.5){
+          ctx.shadowBlur=Math.min(8, brightness * 3);
+          ctx.shadowColor=brightColor;
+        }else{
+          ctx.shadowBlur=contrastVal>0.7?4:0;
+          ctx.shadowColor=color;
+        }
+        ctx.fillStyle=brightColor;
+        ctx.fillText(ch,cellCentersX[gx],cellCentersY[gy]);
+        ctx.shadowBlur=0;
+      }
+    }
+    requestAnimationFrame(drawFrame);
+  }
+  requestAnimationFrame(drawFrame);
+})();
+</script>
+</body>
+</html>

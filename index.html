@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Fizz Fluff — Main</title>
+<meta http-equiv='Cache-Control' content='no-store, no-cache, must-revalidate' />
+<style>
+  html,body{margin:0;padding:0;background:#000;color:#fff;font-family:'Courier New',ui-monospace,Consolas,Menlo,monospace;scroll-behavior:smooth;overflow:hidden;height:100%;}
+  *{box-sizing:border-box;}
+  html::-webkit-scrollbar{width:0;height:0;display:none;}
+  body::-webkit-scrollbar{width:0;height:0;display:none;}
+  html{scrollbar-width:none;-ms-overflow-style:none;}
+  body{scrollbar-width:none;-ms-overflow-style:none;}
+  #bgcv{position:fixed;top:0;left:0;width:100vw;height:100vh;height:100dvh;z-index:0;display:block;image-rendering:pixelated;cursor:default;}
+
+  #page-loader{
+    position:fixed;inset:0;z-index:200;background:#000;color:#fff;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    font-family:'Cascadia Code','JetBrains Mono','Fira Code',ui-monospace,Consolas,Menlo,monospace;
+    transition:opacity .45s ease,visibility .45s ease;
+  }
+  #page-loader.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+  #loader-text{font-size:clamp(14px,1.6vw,18px);letter-spacing:.3em;opacity:.8;text-align:center;}
+</style>
+</head>
+<body>
+<pre id='errbox' style='position:fixed;top:0;left:0;color:#f66;font-family:monospace;font-size:12px;z-index:99;white-space:pre-wrap'></pre>
+<script>window.onerror=function(m,s,l){var b=document.getElementById('errbox');if(b)b.textContent+='ERR: '+m+' @'+l+String.fromCharCode(10);};</script>
+
+<div id='page-loader' role='status' aria-live='polite' aria-label='Loading page'>
+  <p id='loader-text'>LOADING...</p>
+</div>
+
+<script>
+(()=>{
+  const loader=document.getElementById('page-loader');
+  if(!loader)return;
+  const loaderText=document.getElementById('loader-text');
+  if(loaderText)loaderText.textContent='LOADING...';
+  let started=false;
+  function hideLoader(){
+    loader.classList.add('hidden');
+    setTimeout(()=>{if(loader&&loader.parentNode)loader.parentNode.removeChild(loader);},520);
+  }
+  function monitorAssets(){
+    const check=()=>{
+      if(!window.gifLoaded||!Array.isArray(window.gifLoaded)){requestAnimationFrame(check);return;}
+      let count=0;
+      for(let i=0;i<window.gifLoaded.length;i++)if(window.gifLoaded[i])count++;
+      if(count===window.gifLoaded.length){
+        if(!started){started=true;if(loaderText)loaderText.textContent='INITIALIZING...';setTimeout(hideLoader,1000);}
+      }else{requestAnimationFrame(check);}
+    };
+    check();
+  }
+  monitorAssets();
+})();
+</script>
+
+<canvas id='bgcv'></canvas>
+
+<script>
+(()=>{
+  /* ---- PNG assets (static images used to color the ASCII background) ---- */
+  const PNGS=["images/12.png","images/11.png","images/13.png"];
+  const grayBoost=[330,210,180];
+  const gifCvs=PNGS.map(()=>{const c=document.createElement('canvas');c.width=120;c.height=90;return c;});
+  const gifData=PNGS.map(()=>null);
+  const gifBright=PNGS.map(()=>255);
+  const gifLoaded=PNGS.map(()=>false);
+  window.gifLoaded=gifLoaded;
+
+  function loadPng(idx){
+    if(gifLoaded[idx])return;
+    const img=new Image();
+    img.onload=()=>{
+      const w=120;
+      const h=Math.max(1,Math.round(w*img.height/img.width));
+      const c=gifCvs[idx];c.width=w;c.height=h;
+      const c2=c.getContext('2d');c2.drawImage(img,0,0,w,h);
+      const id=c2.getImageData(0,0,w,h);
+      gifData[idx]=new Uint8ClampedArray(id.data);
+      let mx=1;
+      for(let i=0;i<gifData[idx].length;i+=4){
+        const m=Math.max(gifData[idx][i],gifData[idx][i+1],gifData[idx][i+2]);
+        if(m>mx)mx=m;
+      }
+      gifBright[idx]=mx;gifLoaded[idx]=true;
+      if(pngInfo)computePngInfo();
+    };
+    img.onerror=()=>{gifLoaded[idx]=true;};
+    img.src=PNGS[idx];
+  }
+  PNGS.forEach((s,i)=>loadPng(i));
+
+  // Precompute contain geometry for each PNG (depends only on W,H -> recompute on resize)
+  function computePngInfo(){
+    const isMob=window.innerWidth<=768;
+    pngInfo=PNGS.map((_,idx)=>{
+      const d=gifData[idx];
+      const w=gifCvs[idx].width,hh=gifCvs[idx].height;
+      // On mobile make the image larger (touch the sides) and move it higher.
+      const maxW=isMob?W*1.0:W*0.92;
+      const maxH=isMob?H*0.72:H*0.86;
+      const scale=Math.min(maxW/w,maxH/hh);
+      const sw=w*scale, sh=hh*scale;
+      const left=(W-sw)*0.5;
+      // On mobile center the image vertically on the banner area (~44% down the screen).
+      const top=isMob?(H*0.44-sh*0.5):(H-sh)*0.5;
+      const lift=d?(255/(gifBright[idx]||1)):1;
+      return {w,hh,sw,sh,left,top,lift};
+    });
+  }
+
+  function gifColor(idx,px,py,b){
+    if(!pngInfo)computePngInfo();
+    const p=pngInfo[idx];
+    const cx=px+CELL*0.5, cy=py+CELL*0.5;
+    const d=gifData[idx];
+    let r,g,bl;
+    const outside=(cx<p.left||cx>p.left+p.sw||cy<p.top||cy>p.top+p.sh);
+    if(outside||!d){
+      r=g=bl=240;
+    }else{
+      const uu=Math.min(p.w-1,(((cx-p.left)*(p.w/p.sw))|0));
+      const vv=Math.min(p.hh-1,(((cy-p.top)*(p.hh/p.sh))|0));
+      const i=(vv*p.w+uu)*4;
+      r=d[i]*p.lift;g=d[i+1]*p.lift;bl=d[i+2]*p.lift;
+      if(r>255)r=255;if(g>255)g=255;if(bl>255)bl=255;
+    }
+    const mxC=Math.max(r,g,bl),mnC=Math.min(r,g,bl);
+    const tint=1-(mxC-mnC)/255;
+    if(tint>0.35&&grayBoost[idx]!==undefined){
+      const h=grayBoost[idx];
+      const v=mxC/255;
+      const s=0.8;
+      const c=v*s,hp=((h%360)+360)%360/60,x=c*(1-Math.abs(hp%2-1));
+      let nr=0,ng=0,nb=0;
+      if(hp<1){nr=c;ng=x;}
+      else if(hp<2){nr=x;ng=c;}
+      else if(hp<3){ng=c;nb=x;}
+      else if(hp<4){ng=x;nb=c;}
+      else if(hp<5){nr=x;nb=c;}
+      else{nr=c;nb=x;}
+      const m=v-c;
+      const tr=(nr+m)*255,tg=(ng+m)*255,tb=(nb+m)*255;
+      r=lerp(r,tr,tint);g=lerp(g,tg,tint);bl=lerp(bl,tb,tint);
+    }
+    const lum2=0.299*r+0.587*g+0.114*bl;
+    r=r+(r-lum2)*1.3; g=g+(g-lum2)*1.3; bl=bl+(bl-lum2)*1.3;
+    const fl=30;
+    r=r*0.5+fl*(0.3+0.7*b); g=g*0.5+fl*(0.3+0.7*b); bl=bl*0.5+fl*(0.3+0.7*b);
+    const boost=0.9+b*1.1;
+    const rr=r*boost,gg=g*boost,bb=bl*boost;
+    return [rr>255?255:rr, gg>255?255:gg, bb>255?255:bb];
+  }
+
+  const canvas=document.getElementById('bgcv');
+  const ctx=canvas.getContext('2d',{alpha:false});
+  const NOISE_ATLAS=" .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+  const GRAY_GRAD=[[0,0,0],[5,5,6],[9,9,11],[14,14,18],[20,20,24],[27,27,32],[34,34,41],[43,43,51],[53,53,62],[65,65,76],[78,78,90],[91,91,102],[105,105,117]];
+  const speed=0.025;
+  const warp=35+Math.random()*35;
+  let W=0,H=0,cols=0,rows=0,CELL=14;
+  let cellCentersX,cellCentersY,cellThresh;
+  let pngInfo=null; // per-image {sw,sh,left,top,w,h,scale,inv}
+  // per-frame precomputed arrays (size cols*rows)
+  let contrastArr=null,charArr=null;
+
+  const F2=0.5*(Math.sqrt(3.0)-1.0);
+  const G2=(3.0-Math.sqrt(3.0))/6.0;
+  const grad2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+  const perm=new Uint8Array(512);
+  const permMod8=new Uint8Array(512);
+  (function initPerm(){
+    const p=new Uint8Array(256);
+    for(let i=0;i<256;i++)p[i]=i;
+    let s=Math.random()*999999;
+    for(let i=255;i>0;i--){s=(s*9301+49297)%233280;const j=Math.floor((s/233280)*(i+1));const tmp=p[i];p[i]=p[j];p[j]=tmp;}
+    for(let i=0;i<512;i++){perm[i]=p[i&255];permMod8[i]=perm[i]%8;}
+  })();
+  function simplex2(xin,yin){
+    let n0,n1,n2;
+    const s=(xin+yin)*F2;const i=Math.floor(xin+s);const j=Math.floor(yin+s);
+    const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;
+    const i1=x0>y0?1:0;const j1=x0>y0?0:1;
+    const x1=x0-i1+G2,y1=y0-j1+G2;const x2=x0-1.0+2.0*G2,y2=y0-1.0+2.0*G2;
+    const ii=i&255,jj=j&255;
+    const gi0=permMod8[ii+perm[jj]];const gi1=permMod8[ii+i1+perm[jj+j1]];const gi2=permMod8[ii+1+perm[jj+1]];
+    let t0=0.5-x0*x0-y0*y0;n0=t0<0?0.0:(t0*=t0,t0*t0*(grad2[gi0][0]*x0+grad2[gi0][1]*y0));
+    let t1=0.5-x1*x1-y1*y1;n1=t1<0?0.0:(t1*=t1,t1*t1*(grad2[gi1][0]*x1+grad2[gi1][1]*y1));
+    let t2=0.5-x2*x2-y2*y2;n2=t2<0?0.0:(t2*=t2,t2*t2*(grad2[gi2][0]*x2+grad2[gi2][1]*y2));
+    return 70.0*(n0+n1+n2);
+  }
+  function smoothWaveNoise(x,y,t){
+    const s=0.002;const n1=simplex2(x*s+t*0.02,y*s-t*0.03);const warp1=250;
+    const x1=x+n1*warp1;const y1=y+n1*warp1;
+    const s2=0.005;const n2=simplex2(x1*s2-t*0.04,y1*s2+t*0.05);const warp2=120;
+    const x2=x1+n2*warp2;const y2=y1+n2*warp2;
+    const s3=0.01;const n3=simplex2(x2*s3+t*0.06,y2*s3-t*0.07);
+    return(n1*0.5+n2*0.3+n3*0.2);
+  }
+  function flow(x,y,t){
+    const a=smoothWaveNoise(x*0.7,y*0.7,t);
+    return{x:Math.cos(a*3.14159+t*0.12)*warp,y:Math.sin(a*3.14159-t*0.12)*warp};
+  }
+  function lerp(a,b,t){return a+(b-a)*t;}
+
+  /* ---- ASCII banner font (5x7) ---- */
+  const FONT={
+    A:[".###.","#...#","#...#","#####","#...#","#...#","#...#"],
+    B:["####.","#...#","#...#","####.","#...#","#...#","####."],
+    C:[".###.","#...#","#....","#....","#....","#...#",".###."],
+    D:["####.","#...#","#...#","#...#","#...#","#...#","####."],
+    E:["#####","#....","#....","####.","#....","#....","#####"],
+    F:["#####","#....","#....","####.","#....","#....","#...."],
+    G:[".###.","#...#","#....","#.###","#...#","#...#",".###."],
+    H:["#...#","#...#","#...#","#####","#...#","#...#","#...#"],
+    I:["#####","..#..","..#..","..#..","..#..","..#..","#####"],
+    J:["..###","...#.","...#.","...#.","...#.","#..#.",".##.."],
+    K:["#...#","#..#.","#.#..","##...","#.#..","#..#.","#...#"],
+    L:["#....","#....","#....","#....","#....","#....","#####"],
+    M:["#...#","##.##","#.#.#","#.#.#","#...#","#...#","#...#"],
+    N:["#...#","##..#","#.#.#","#..##","#...#","#...#","#...#"],
+    O:[".###.","#...#","#...#","#...#","#...#","#...#",".###."],
+    P:["####.","#...#","#...#","####.","#....","#....","#...."],
+    Q:[".###.","#...#","#...#","#...#","#.#.#","#..#.",".##.#"],
+    R:["####.","#...#","#...#","####.","#.#..","#..#.","#...#"],
+    S:[".####","#....","#....",".###.","....#","....#","####."],
+    T:["#####","..#..","..#..","..#..","..#..","..#..","..#.."],
+    U:["#...#","#...#","#...#","#...#","#...#","#...#",".###."],
+    V:["#...#","#...#","#...#","#...#","#...#",".#.#.","..#.."],
+    W:["#...#","#...#","#...#","#.#.#","#.#.#","##.##","#...#"],
+    X:["#...#","#...#",".#.#.","..#..",".#.#.","#...#","#...#"],
+    Y:["#...#","#...#",".#.#.","..#..","..#..","..#..","..#.."],
+    Z:["#####","....#","...#.","..#..",".#...","#....","#####"],
+    " ":[".....",".....",".....",".....",".....",".....","....."]
+  };
+
+  /* ---- Section content ---- */
+  const SECTIONS=[
+    {eyebrow:"SECTION 01",title:"ABOUT ME",lead:"A little about who I am, what I do and what drives me.",btn:"ABOUT ME",url:"https://fizzfluff.mywire.org/aboutfizz-main/"},
+    {eyebrow:"SECTION 02",title:"MY EXTRAS",lead:"Projects and experiments I have built, collected and shared along the way.",btn:"VIEW MORE",url:"https://fizzfluff.mywire.org/abtme-main/"},
+    {eyebrow:"SECTION 03",title:"WEB OS",lead:"A web-based desktop experience — a OS-like interface in the browser.",btn:"START SYSTEM",url:"https://fizzfluff.mywire.org/terminal-main/"}
+  ];
+  const N=SECTIONS.length;
+  // On mobile the 5x7 banner is too wide for one line, so split each title into two lines.
+  const TITLE_PARTS={"ABOUT ME":["ABOUT","ME"],"MY EXTRAS":["MY","EXTRAS"],"PORTFOLIO":["PORT","FOLIO"],"WEB OS":["WEB","OS"]};
+  const AUTOPLAY_MS=8000;
+
+  let currentIndex=0;
+  let navDir=1; // +1 = moving to next/right, -1 = moving to prev/left
+  // Discrete transition: fromIndex -> toIndex animated by trans (0..1).
+  let fromIndex=0,toIndex=0,trans=1.0,EASE=2.2;
+  let autoplayBar=0;
+  let blinkPhase=0;
+  let ui={};
+  let uiCells=null;
+  let uiText=null;
+  let hover={arrowL:false,arrowR:false,btn:false,dot:-1};
+
+  function resize(){
+    // Size the canvas to the actual displayed size (matches CSS 100vw/100dvh),
+    // so on Android the drawing is not taller than the visible screen.
+    const r=canvas.getBoundingClientRect();
+    W=canvas.width=Math.max(1,Math.round(r.width));
+    H=canvas.height=Math.max(1,Math.round(r.height));
+    // Use a smaller cell on mobile so the full (two-line) banner and UI fit on screen.
+    const isMobileScreen=window.innerWidth<=768;
+    CELL=Math.max(8,Math.floor(Math.min(W,H)/(isMobileScreen?40:55)));
+    cols=Math.max(1,Math.floor(W/CELL));
+    rows=Math.max(1,Math.floor(H/CELL));
+    ctx.font=CELL+'px monospace';
+    ctx.textBaseline='middle';
+    ctx.textAlign='center';
+    cellCentersX=new Float32Array(cols);
+    cellCentersY=new Float32Array(rows);
+    for(let gx=0;gx<cols;gx++) cellCentersX[gx]=gx*CELL+CELL/2;
+    for(let gy=0;gy<rows;gy++) cellCentersY[gy]=gy*CELL+CELL/2;
+    cellThresh=new Float32Array(cols*rows);
+    for(let gy=0;gy<rows;gy++){
+      for(let gx=0;gx<cols;gx++){
+        const seed=Math.abs(gx*73856093 ^ gy*19349663);
+        const cellRand=(seed%1000)/1000;
+        cellThresh[gy*cols+gx]=Math.pow(cellRand,1.5);
+      }
+    }
+    computePngInfo();
+    computeUI();
+  }
+  window.addEventListener('resize',resize);
+  window.addEventListener('orientationchange',resize);
+
+  function computeUI(){
+    const cr=Math.round(rows/2);
+    const isMobile=window.innerWidth<=768;
+    const sec=SECTIONS[currentIndex];
+    // Two banner lines on mobile so the ASCII title fits inside the borders.
+    ui.bannerParts=(isMobile&&TITLE_PARTS[sec.title])||[sec.title];
+    const two=ui.bannerParts.length>1;
+    // On mobile, drop the side chevrons below the text/button area for breathing room.
+    ui.arrowRow=isMobile?Math.max(cr+12,Math.min(cr+14,rows-8)):cr;
+    ui.arrowLCol=1;
+    ui.arrowRCol=cols-2;
+    // Hit boxes must match the row the arrows are actually drawn at (ui.arrowRow),
+    // otherwise taps on mobile never register.
+    ui.arrowL={x:CELL*2,y:ui.arrowRow*CELL+CELL/2};
+    ui.arrowR={x:W-CELL*2,y:ui.arrowRow*CELL+CELL/2};
+    ui.eyebrowRow=isMobile?(two?cr-15:cr-9):cr-9;
+    ui.bannerTopRow=isMobile?(two?cr-13:cr-6):cr-6;
+    ui.leadRow=isMobile?(two?cr+7:cr+3):cr+3;
+    ui.btnRow=isMobile?(two?cr+10:cr+6):cr+6;
+    ui.dotsRow=rows-2;
+    ui.dots=[];
+    const dotSpacing=2;
+    const totalW=(N-1)*dotSpacing;
+    const startCol=Math.round((cols-totalW)/2);
+    for(let i=0;i<N;i++){
+      ui.dots.push({col:startCol+i*dotSpacing,row:ui.dotsRow,x:(startCol+i*dotSpacing)*CELL+CELL/2,y:ui.dotsRow*CELL+CELL/2});
+    }
+    const btnText=SECTIONS[currentIndex].btn;
+    const btnWcells=btnText.length+4;
+    const btnLeftCol=Math.round((cols-btnWcells)/2);
+    ui.btn={x0:btnLeftCol*CELL,x1:(btnLeftCol+btnWcells)*CELL,y0:ui.btnRow*CELL,y1:(ui.btnRow+3)*CELL};
+    computeUICells();
+  }
+
+  function computeUICells(){
+    uiCells=new Uint8Array(rows*cols);
+    uiText=new Uint8Array(rows*cols);
+    // mark exact text/symbol cells (fully replace the background there)
+    const markText=(r0,r1,c0,c1)=>{for(let r=r0;r<=r1;r++){if(r<0||r>=rows)continue;for(let c=c0;c<=c1;c++){if(c>=0&&c<cols)uiText[r*cols+c]=1;}}};
+    // mark a rectangle [r0,r1]x[c0,c1] plus a void margin of `pad` cells around it
+    const markRect=(r0,r1,c0,c1,pad)=>{r0-=pad;r1+=pad;c0-=pad;c1+=pad;for(let r=r0;r<=r1;r++){if(r<0||r>=rows)continue;for(let c=c0;c<=c1;c++){if(c>=0&&c<cols)uiCells[r*cols+c]=1;}}};
+    const sec=SECTIONS[currentIndex];
+    const margin=1;
+    // Countdown (replaces eyebrow)
+    const cdStr='NEXT IN 8';
+    const ebCol=Math.round((cols-1-cdStr.length)/2);
+    markText(ui.eyebrowRow,ui.eyebrowRow,ebCol,ebCol+cdStr.length-1);
+    markRect(ui.eyebrowRow,ui.eyebrowRow,ebCol,ebCol+cdStr.length-1,margin);
+    // Title banner (5x7 glyph cells), rendered as one or two lines
+    const parts=ui.bannerParts;
+    parts.forEach((part,pi)=>{
+      const topRow=ui.bannerTopRow+pi*8;
+      const bCol=Math.round((cols-1)/2)+1-Math.round(part.length*6/2);
+      let lastInkCol=bCol;
+      for(let ch=0;ch<part.length;ch++){
+        const glyph=FONT[part[ch]]||FONT[' '];
+        const gx0=bCol+ch*6;
+        for(let r=0;r<7;r++)for(let c=0;c<5;c++)if(glyph[r][c]==='#'){markText(topRow+r,topRow+r,gx0+c,gx0+c);if(gx0+c>lastInkCol)lastInkCol=gx0+c;}
+      }
+      markRect(topRow,topRow+6,bCol,lastInkCol,margin);
+    });
+    // Lead text (each wrapped line)
+    const maxChars=Math.min(cols-4,60);
+    const lines=wrapText(sec.lead,maxChars);
+    lines.forEach((ln,i)=>{
+      const c=Math.round((cols-1-ln.length)/2);
+      markText(ui.leadRow+i,ui.leadRow+i,c,c+ln.length-1);
+      markRect(ui.leadRow+i,ui.leadRow+i,c,c+ln.length-1,margin);
+    });
+    // Button box
+    const pad=2,w=sec.btn.length+pad*2;
+    const left=Math.round((cols-1)/2)-Math.round(w/2);
+    // Box border and label cells are exact text
+    markText(ui.btnRow,ui.btnRow,left,left+w-1);
+    markText(ui.btnRow+2,ui.btnRow+2,left,left+w-1);
+    markText(ui.btnRow+1,ui.btnRow+1,left,left);
+    markText(ui.btnRow+1,ui.btnRow+1,left+w-1,left+w-1);
+    markText(ui.btnRow+1,ui.btnRow+1,left+pad,left+pad+sec.btn.length-1);
+    markRect(ui.btnRow,ui.btnRow+2,left,left+w-1,margin);
+    // Blinking < > chevrons (positions match drawButton: left-2 and left+w+1)
+    markText(ui.btnRow+1,ui.btnRow+1,left-2,left-2);
+    markText(ui.btnRow+1,ui.btnRow+1,left+w+1,left+w+1);
+    markRect(ui.btnRow,ui.btnRow+2,left-3,left-1,margin);
+    markRect(ui.btnRow,ui.btnRow+2,left+w,left+w+2,margin);
+    // Arrows: mark every cell the solid < > triangle occupies
+    const markArrow=(acol,arow,dir)=>{
+      const cells=dir==='<'
+        ?[[2,-2],[1,-1],[2,-1],[0,0],[1,0],[2,0],[1,1],[2,1],[2,2]]
+        :[[-2,-2],[-2,-1],[-1,-1],[-2,0],[-1,0],[0,0],[-2,1],[-1,1],[-2,2]];
+      cells.forEach(o=>markText(arow+o[1],arow+o[1],acol+o[0],acol+o[0]));
+    };
+    markArrow(ui.arrowLCol,ui.arrowRow,'<');
+    markArrow(ui.arrowRCol,ui.arrowRow,'>');
+    for(let r=ui.arrowRow-2;r<=ui.arrowRow+2;r++){markRect(r,r,ui.arrowLCol,ui.arrowLCol+2,margin);markRect(r,r,ui.arrowRCol-2,ui.arrowRCol,margin);}
+    // Dots
+    ui.dots.forEach(d=>{markText(ui.dotsRow,ui.dotsRow,d.col,d.col);markRect(ui.dotsRow,ui.dotsRow,d.col,d.col,margin);});
+  }
+
+  function wrapText(str,maxChars){
+    const words=str.split(' ');
+    const lines=[];let cur='';
+    for(const w of words){
+      if((cur+' '+w).trim().length<=maxChars)cur=(cur+' '+w).trim();
+      else{if(cur)lines.push(cur);cur=w;}
+    }
+    if(cur)lines.push(cur);
+    return lines;
+  }
+
+  function drawGridText(col,row,str,color,glow){
+    for(let i=0;i<str.length;i++){
+      const gx=col+i;
+      if(gx<0||gx>=cols||row<0||row>=rows)continue;
+      ctx.fillStyle=color;
+      if(glow){ctx.shadowBlur=glow;ctx.shadowColor=color;}
+      ctx.fillText(str[i],cellCentersX[gx],cellCentersY[row]);
+      ctx.shadowBlur=0;
+    }
+  }
+
+  function drawBanner(str,centerCol,topRow,color){
+    let x=centerCol-Math.round(str.length*6/2);
+    for(const ch of str){
+      const glyph=FONT[ch]||FONT[' '];
+      for(let r=0;r<7;r++){
+        const row=topRow+r;
+        if(row<0||row>=rows)continue;
+        for(let c=0;c<5;c++){
+          const col=x+c;
+          if(col<0||col>=cols)continue;
+          if(glyph[r][c]==='#'){
+            ctx.fillStyle=color;
+            ctx.fillText('#',cellCentersX[col],cellCentersY[row]);
+          }
+        }
+      }
+      x+=6;
+    }
+  }
+
+  function drawButton(centerCol,topRow,text,hovered,blinkVisible){
+    const pad=2;
+    const w=text.length+pad*2;
+    const left=centerCol-Math.round(w/2);
+    const color=hovered?'#fff':'rgba(255,255,255,0.85)';
+    const glow=hovered?10:4;
+    let top='+';
+    for(let i=0;i<w-2;i++)top+='-';
+    top+='+';
+    drawGridText(left,topRow,top,color,glow);
+    drawGridText(left,topRow+2,top,color,glow);
+    drawGridText(left,topRow+1,'|',color,glow);
+    drawGridText(left+w-1,topRow+1,'|',color,glow);
+    drawGridText(left+pad,topRow+1,text,color,glow);
+    if(blinkVisible){
+      drawGridText(left-2,topRow+1,'>',color,glow);
+      drawGridText(left+w+1,topRow+1,'<',color,glow);
+    }
+  }
+
+  function drawArrow(col,row,dir,hovered){
+    const color=hovered?'#fff':'rgba(255,255,255,0.8)';
+    const glow=hovered?10:4;
+    // Solid filled triangle arrow (not a thin line).
+    if(dir==='<'){
+      // point at left (col), flat base at right (col+2) -> points LEFT
+      drawGridText(col+2,row-2,'<',color,glow);
+      drawGridText(col+1,row-1,'<',color,glow);drawGridText(col+2,row-1,'<',color,glow);
+      drawGridText(col,row,'<',color,glow);drawGridText(col+1,row,'<',color,glow);drawGridText(col+2,row,'<',color,glow);
+      drawGridText(col+1,row+1,'<',color,glow);drawGridText(col+2,row+1,'<',color,glow);
+      drawGridText(col+2,row+2,'<',color,glow);
+    }else{
+      // point at right (col), flat base at left (col-2) -> points RIGHT
+      drawGridText(col-2,row-2,'>',color,glow);
+      drawGridText(col-2,row-1,'>',color,glow);drawGridText(col-1,row-1,'>',color,glow);
+      drawGridText(col-2,row,'>',color,glow);drawGridText(col-1,row,'>',color,glow);drawGridText(col,row,'>',color,glow);
+      drawGridText(col-2,row+1,'>',color,glow);drawGridText(col-1,row+1,'>',color,glow);
+      drawGridText(col-2,row+2,'>',color,glow);
+    }
+  }
+
+  function drawUI(){
+    const sec=SECTIONS[currentIndex];
+    const cdVal=Math.max(1,Math.ceil((AUTOPLAY_MS-autoplayBar)/1000));
+    drawGridText(Math.round((cols-1-('NEXT IN '+cdVal).length)/2),ui.eyebrowRow,'NEXT IN '+cdVal,'rgba(255,255,255,0.7)');
+    const parts=ui.bannerParts;
+    parts.forEach((part,pi)=>drawBanner(part,Math.round((cols-1)/2)+1,ui.bannerTopRow+pi*8,'#fff'));
+    const maxChars=Math.min(cols-4,60);
+    const lines=wrapText(sec.lead,maxChars);
+    lines.forEach((ln,i)=>drawGridText(Math.round((cols-1-ln.length)/2),ui.leadRow+i,ln,'rgba(255,255,255,0.9)'));
+    const blinkOn=(Math.floor(blinkPhase)%2)===0;
+    drawButton(Math.round((cols-1)/2),ui.btnRow,sec.btn,hover.btn,blinkOn);
+    drawArrow(ui.arrowLCol,ui.arrowRow,'<',hover.arrowL);
+    drawArrow(ui.arrowRCol,ui.arrowRow,'>',hover.arrowR);
+    for(let i=0;i<ui.dots.length;i++){
+      const ch=i===currentIndex?'●':'○';
+      drawGridText(ui.dots[i].col,ui.dotsRow,ch,i===currentIndex?'#fff':'rgba(255,255,255,0.4)');
+    }
+  }
+
+  function goTo(i,dir){
+    i=((i%N)+N)%N;
+    if(i===currentIndex)return;
+    currentIndex=i;
+    navDir=dir===undefined?navDir:dir;
+    fromIndex=toIndex;   // already fully arrived at the previous target
+    toIndex=i;
+    trans=0.0;
+    computeUI();
+  }
+
+  function dist(x1,y1,x2,y2){const dx=x1-x2,dy=y1-y2;return Math.sqrt(dx*dx+dy*dy);}
+
+  // Convert a client (CSS) coordinate into canvas drawing coordinates.
+  // On mobile the canvas is sized in the large viewport but displayed at 100vw/100vh,
+  // so the browser may scale it; getBoundingClientRect() accounts for that scaling.
+  function toCanvas(clientX,clientY){
+    const r=canvas.getBoundingClientRect();
+    const sx=r.width>0?canvas.width/r.width:1;
+    const sy=r.height>0?canvas.height/r.height:1;
+    return {x:(clientX-r.left)*sx, y:(clientY-r.top)*sy};
+  }
+
+  function handleTap(cx,cy){
+    const nav=()=>autoplayBar=0;
+    // Clickable rectangle around each arrow: the arrow triangle (3 cols x 5 rows)
+    // plus 1 extra line on every side (5 cols x 7 rows).
+    const arrowPad=1;
+    const lx0=(ui.arrowLCol-arrowPad)*CELL, lx1=(ui.arrowLCol+3+arrowPad)*CELL;
+    const rx0=(ui.arrowRCol-3-arrowPad)*CELL, rx1=(ui.arrowRCol+arrowPad)*CELL;
+    const ay0=(ui.arrowRow-2-arrowPad)*CELL, ay1=(ui.arrowRow+3+arrowPad)*CELL;
+    if(cx>=lx0&&cx<=lx1&&cy>=ay0&&cy<=ay1){nav();goTo(currentIndex-1,-1);}
+    else if(cx>=rx0&&cx<=rx1&&cy>=ay0&&cy<=ay1){nav();goTo(currentIndex+1,1);}
+    else if(cx>=ui.btn.x0&&cx<=ui.btn.x1&&cy>=ui.btn.y0&&cy<=ui.btn.y1)window.location.href=SECTIONS[currentIndex].url;
+    else{
+      for(let i=0;i<ui.dots.length;i++){
+        if(dist(cx,cy,ui.dots[i].x,ui.dots[i].y)<CELL*1.5){nav();goTo(i, i>currentIndex?1:-1);break;}
+      }
+    }
+  }
+  canvas.addEventListener('click',e=>{const p=toCanvas(e.clientX,e.clientY);handleTap(p.x,p.y);});
+  // Handle touch directly so taps register reliably on mobile at the exact touch position.
+  canvas.addEventListener('touchend',e=>{
+    e.preventDefault();
+    const t=e.changedTouches&&e.changedTouches[0];
+    if(t){const p=toCanvas(t.clientX,t.clientY);handleTap(p.x,p.y);}
+  },{passive:false});
+
+  window.addEventListener('keydown',e=>{
+    if(e.key==='ArrowLeft'){autoplayBar=0;goTo(currentIndex-1,-1);}
+    if(e.key==='ArrowRight'){autoplayBar=0;goTo(currentIndex+1,1);}
+  });
+
+  let mouseX=-9999,mouseY=-9999;
+  let pointerActive=false; // true only while a cursor is over the window (desktop hover)
+  const isMobileUI=()=>window.innerWidth<=768;
+  window.addEventListener('mousemove',e=>{
+    if(isMobileUI())return; // hover/spotlight disabled on mobile
+    mouseX=e.clientX;mouseY=e.clientY;
+    pointerActive=true;
+    // Arrow hit rectangles (same as the click zones): arrow triangle (3x5) + 1 line each side.
+    const arrowPad=1;
+    const lx0=(ui.arrowLCol-arrowPad)*CELL, lx1=(ui.arrowLCol+3+arrowPad)*CELL;
+    const rx0=(ui.arrowRCol-3-arrowPad)*CELL, rx1=(ui.arrowRCol+arrowPad)*CELL;
+    const ay0=(ui.arrowRow-2-arrowPad)*CELL, ay1=(ui.arrowRow+3+arrowPad)*CELL;
+    hover.arrowL=mouseX>=lx0&&mouseX<=lx1&&mouseY>=ay0&&mouseY<=ay1;
+    hover.arrowR=mouseX>=rx0&&mouseX<=rx1&&mouseY>=ay0&&mouseY<=ay1;
+    hover.btn=mouseX>=ui.btn.x0&&mouseX<=ui.btn.x1&&mouseY>=ui.btn.y0&&mouseY<=ui.btn.y1;
+    hover.dot=-1;
+    for(let i=0;i<ui.dots.length;i++)if(dist(mouseX,mouseY,ui.dots[i].x,ui.dots[i].y)<CELL*1.5)hover.dot=i;
+    canvas.style.cursor=(hover.btn||hover.arrowL||hover.arrowR||hover.dot>=0)?'pointer':'default';
+  });
+  window.addEventListener('mouseleave',()=>{mouseX=-9999;mouseY=-9999;pointerActive=false;hover.arrowL=hover.arrowR=hover.btn=false;hover.dot=-1;canvas.style.cursor='default';});
+  document.addEventListener('mouseleave',()=>{mouseX=-9999;mouseY=-9999;pointerActive=false;hover.arrowL=hover.arrowR=hover.btn=false;hover.dot=-1;canvas.style.cursor='default';});
+  document.addEventListener('mouseout',e=>{if(!e.relatedTarget){mouseX=-9999;mouseY=-9999;pointerActive=false;}});
+  // Hover/spotlight is disabled on touch/mobile; touch only drives the click handler.
+
+  resize();
+
+  const atlasLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){const b=i/255;atlasLUT[i]=Math.min(NOISE_ATLAS.length-1,Math.floor(b*(NOISE_ATLAS.length-1)*0.9));}
+  const grayLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){const b=i/255;grayLUT[i]=Math.min(GRAY_GRAD.length-1,Math.floor(b*(GRAY_GRAD.length-1)*0.85));}
+  const spotlightLUT=new Uint16Array(256);
+  for(let i=0;i<256;i++){const b=i/255;spotlightLUT[i]=Math.min(NOISE_ATLAS.length-1,Math.floor((b+0.5)*(NOISE_ATLAS.length-1)*0.95));}
+
+  let lastTime=0;
+  const TARGET_FPS=30;
+  const FRAME_TIME=1000/TARGET_FPS;
+  let lastFrameTime=0;
+
+  function drawFrame(t){
+    if(t-lastFrameTime<FRAME_TIME){requestAnimationFrame(drawFrame);return;}
+    lastFrameTime=t;
+    const timeSec=t*0.001;
+    const dt=Math.min(0.05,timeSec-(lastTime||timeSec));
+    lastTime=timeSec;
+    const flowTime=timeSec*speed*60;
+    const warpedTime=flowTime+Math.sin(flowTime*0.101)*2+Math.cos(flowTime*0.0707)*1.5;
+
+    // Drive a discrete interstitial blend: fromIndex -> toIndex (loop-aware).
+    if(trans<1){
+      trans+=(1-trans)*Math.min(1,dt*EASE);
+      if(trans>=0.999)trans=1;
+    }
+    // Autoplay advance every AUTOPLAY_MS
+    autoplayBar+=dt*1000;
+    if(autoplayBar>=AUTOPLAY_MS){autoplayBar=0;goTo(currentIndex+1,1);}
+    // Blink phase for button chevrons (~0.5s cycle)
+    blinkPhase+=dt;
+    const iA=fromIndex, iB=toIndex;
+    const mix=trans;
+    ctx.fillStyle='#050505';
+    ctx.fillRect(0,0,W,H);
+
+    const sr=45, sr2=sr*sr;
+    const nCells=cols*rows;
+
+    // ---- Precompute pass: one smoothWaveNoise per cell (was ~5x) ----
+    if(contrastArr===null||contrastArr.length!==nCells){contrastArr=new Float32Array(nCells);charArr=new Uint8Array(nCells);}
+    let pi=0;
+    for(let gy=0;gy<rows;gy++){
+      const py=gy*CELL;
+      const f1yRow=flow(0,py,warpedTime).y;
+      for(let gx=0;gx<cols;gx++,pi++){
+        const px=gx*CELL;
+        const f1=flow(px,0,warpedTime);
+        const f2x=flow(px+f1.x,0,warpedTime+1.5).x;
+        const f2y=flow(0,py+f1yRow,warpedTime+1.5).y;
+        const sx=px+f1.x+f2x*0.7;
+        const sy=py+f1yRow+f2y*0.7;
+        const n2=smoothWaveNoise(sx,sy,warpedTime);
+        const bv=(Math.tanh(n2)+1)*0.5;
+        const cv=bv<0.5 ? 0.5*(bv*bv/0.5)+0.5*bv : 0.5*(1-(1-bv)*(1-bv)/0.5)+0.5*bv;
+        const bv255=cv*255|0;
+        contrastArr[pi]=cv;
+        charArr[pi]=atlasLUT[bv255];
+      }
+    }
+    // hoist dissolve params
+    const prog=(mix-0.1)/0.8;
+    const sweepBase=navDir>=0?1:0;
+
+    for(let pi=0;pi<nCells;pi++){
+      const isText=uiText[pi];
+      const isUI=uiCells[pi];
+      if(isText)continue; // text/symbol cells handled by drawUI -> fully replace
+      const gy=(pi/cols)|0, gx=pi-gy*cols;
+      const cv=contrastArr[pi];
+      const bv255=cv*255|0;
+      const chNOISE=NOISE_ATLAS[charArr[pi]];
+      let ch=chNOISE;
+      const px=gx*CELL, py=gy*CELL;
+
+      // Directional dissolve (per-cell threshold + column bias)
+      let useB;
+      const sweepX = sweepBase===1 ? 1-gx/cols : gx/cols;
+      const thresh=(cellThresh[pi]*(1-0.65))+sweepX*0.65;
+      if(mix<0.1) useB=false;
+      else if(mix>0.9) useB=true;
+      else if(mix>=0.85) useB=true;
+      else{useB=prog >= thresh;}
+      const c=useB?gifColor(iB,px,py,cv):gifColor(iA,px,py,cv);
+
+      // numeric color (always defined; keep from gifColor or gray fallback)
+      let r,cg,cb;
+      if(c){r=c[0]|0;cg=c[1]|0;cb=c[2]|0;}
+      else{
+        const colorIdx=grayLUT[bv255];
+        const a=GRAY_GRAD[colorIdx];
+        const b2=GRAY_GRAD[Math.min(colorIdx+1,GRAY_GRAD.length-1)];
+        const f=(cv*(GRAY_GRAD.length-1)*0.85)%1;
+        r=lerp(a[0],b2[0],f)|0;cg=lerp(a[1],b2[1],f)|0;cb=lerp(a[2],b2[2],f)|0;
+      }
+
+      const centerX=cellCentersX[gx], centerY=cellCentersY[gy];
+      let brightness=1.0;
+      // Also verify the cursor is still within the canvas each frame; this handles
+      // cases where a mouseleave event never fires when leaving the browser window.
+      if(pointerActive&&mouseX>-9000&&mouseX>=0&&mouseX<W&&mouseY>=0&&mouseY<H){
+        const dx=centerX-mouseX, dy=centerY-mouseY;
+        const dist2=dx*dx+dy*dy;
+        if(dist2<sr2){
+          const dist=Math.sqrt(dist2);
+          const intensity=Math.pow(1-dist/sr, 2);
+          brightness=1.0 + intensity*0.6;
+          if(dist<15)brightness+=(1-dist/15)*0.4;
+          ch=NOISE_ATLAS[spotlightLUT[bv255]];
+          if(dist2<2025){
+            if(Math.random() < (1-Math.pow(dist/45,1.5))){ch='■';brightness=Math.max(brightness,1.2);}
+          }
+        }
+      }
+
+      let fr,fg,fb;
+      if(isUI){fr=r>>1;fg=cg>>1;fb=cb>>1;}
+      else{fr=r;fg=cg;fb=cb;}
+      if(brightness>1.001){fr=Math.min(255,fr*brightness)|0;fg=Math.min(255,fg*brightness)|0;fb=Math.min(255,fb*brightness)|0;}
+
+      if(brightness>1.5){ctx.shadowBlur=Math.min(8,brightness*3);ctx.shadowColor='rgb('+fr+','+fg+','+fb+')';}
+      else{ctx.shadowBlur=cv>0.7?4:0;ctx.shadowColor='rgb('+r+','+cg+','+cb+')';}
+      ctx.fillStyle='rgb('+fr+','+fg+','+fb+')';
+      ctx.fillText(ch,centerX,centerY);
+      ctx.shadowBlur=0;
+    }
+
+    drawUI();
+    requestAnimationFrame(drawFrame);
+  }
+  requestAnimationFrame(drawFrame);
+})();
+</script>
+</body>
+</html>
