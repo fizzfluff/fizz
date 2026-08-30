@@ -1,0 +1,161 @@
+﻿<!doctype html>
+<html lang=en>
+<head>
+<meta charset=utf-8 />
+<meta name=viewport content="width=device-width,initial-scale=1" />
+<title>Fizz Fluff - ASCII Presentation
+<meta http-equiv='Cache-Control' content='no-store, no-cache, must-revalidate'></title>
+<style>html,body{margin:0;background:#000;overflow:hidden;height:100vh;width:100vw}canvas{display:block;width:100vw;height:100vh;image-rendering:pixelated}</style>
+</head>
+<body>
+<pre id='errbox' style='position:fixed;top:0;left:0;color:#f66;font-family:monospace;font-size:12px;z-index:99;white-space:pre-wrap'></pre>
+<script>window.onerror=function(m,s,l){var b=document.getElementById('errbox');if(b)b.textContent+='ERR: '+m+' @'+l+String.fromCharCode(10);};</script>
+<canvas id=cv></canvas>
+<div id='gate' style='position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;font-family:monospace;color:#fff;font-size:clamp(20px,4.5vw,34px);font-weight:400;cursor:pointer;text-shadow:0 0 12px rgba(255,255,255,.6)'>&gt;CLICK ME_</div>
+<div id='vctrl' style='position:fixed;display:none;z-index:9;line-height:0'>
+<button id='b-prev' title='previous' style='all:unset;cursor:pointer;width:100%;height:100%;display:block;background:transparent;border:none'></button>
+<button id='b-play' title='play/pause' style='all:unset;cursor:pointer;width:100%;height:100%;display:block;background:transparent;border:none'></button>
+<button id='b-next' title='next' style='all:unset;cursor:pointer;width:100%;height:100%;display:block;background:transparent;border:none'></button>
+</div>
+
+
+<video id='bgvid' playsinline style='display:none'></video>
+
+
+<script>(()=>{const canvas=document.getElementById('cv');const ctx=canvas.getContext('2d',{alpha:false});const NOISE_ATLAS=" .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";const GLITCH_CHARS="!@#$%^&*()_+-=[]{}|;':\",./<>?`~█▓▒░▄▀▌▐▀▄";const GRAY_GRAD=[[0,0,0],[5,5,6],[9,9,11],[14,14,18],[20,20,24],[27,27,32],[34,34,41],[43,43,51],[53,53,62],[65,65,76],[78,78,90],[91,91,102],[105,105,117],];const BANNER_LEFT=["███████╗██╗███████╗███████╗","██╔════╝██║╚══███╔╝╚══███╔╝","█████╗  ██║  ███╔╝   ███╔╝ ","██╔══╝  ██║ ███╔╝   ███╔╝  ","██║     ██║███████╗███████╗","╚═╝     ╚═╝╚══════╝╚══════╝",];const BANNER_RIGHT=["███████╗██╗     ██╗   ██╗███████╗███████╗","██╔════╝██║     ██║   ██║██╔════╝██╔════╝","█████╗  ██║     ██║   ██║█████╗  █████╗  ","██╔══╝  ██║     ██║   ██║██╔══╝  ██╔══╝  ","██║     ███████╗╚██████╔╝██║     ██║     ","╚═╝     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝     "];const BANNER2_LINES=[];const CONTENT_LINES=["  A B O U T   F I Z Z   F L U F F","  ───────────────────────────────","","  Hiiii, I am Fizz Fluff :3 A Mexican who likes","  everything related to technology (especially","  Networking). I love to fix things, work on fun","  proyects and buy a lot of cool audio, IT and","  network things.. (I am a compulsive buyer of","  random business grade equipment).","","  I like all music in general, but especially rock,","  funk, alternative and chill music, I LOVE pizza","  and tacos.","","  I work in IT/Teleco and I am quite passionate","  about it hehe :3 I love to learn, every day is","  different from the previous one and i get excited","  to find something new.","","  I love talking and listening to others, feel free","  to add me on any of my accounts:","    discord : fizzfluff","    vrchat  : Fizz Fluff","","  Tnks for Your Time! Have a great day <3"];const RARE_MESSAGES=["- U W U -","- P I Z Z A   &   T A C O S -","- H A V E   A   G R E A T   D A Y -"];let W=0,H=0;let cols=0,rows=0;let CELL=14;let seed=Math.random()*999999;const speed=0.025;const warp=35+Math.random()*35;let textProgress=0;const TEXT_TYPE_DURATION=4.0;let textPhase='typing';let phaseStartTime=0;let correctTextGrid=[];let renderTextGrid=[];let textGridDirty=true;let lastTextProgress=-1;let glitchActive=false;let glitchFramesRemaining=0;let glitchPositions=[];let rareMessageActive=false;let rareMessageFramesRemaining=0;let rareMessagePositions=[];let rareMessageLine=-1;let rareNextTriggerTime=0;let glitchBoostFrames=0;const GLITCH_BOOST_DURATION=600;
+let vidData=null;const vw=80,vh=45;const vsC=document.createElement('canvas');vsC.width=vw;vsC.height=vh;const vsX=vsC.getContext('2d',{willReadFrequently:true});let lastVidS=0; function sampleVid(ms){const v=document.getElementById('bgvid');if(!v||v.paused||v.ended){vidData=null;}if(!v||v.readyState<2||v.paused||v.ended)return;if(ms-lastVidS<70)return;lastVidS=ms;try{vsX.drawImage(v,0,0,vw,vh);vidData=vsX.getImageData(0,0,vw,vh).data;}catch(e){}} function vidTint(px,py,b){if(!vidData)return null;const u=Math.min(vw-1,(px/W*vw)|0),vv=Math.min(vh-1,(py/H*vh)|0);const i=((vv*vw)+u)*4;const k=0.25+0.95*b;return 'rgb('+((vidData[i]*k)|0)+','+((vidData[i+1]*k)|0)+','+((vidData[i+2]*k)|0)+')';}let isMobile=false;let wrappedLines=[];function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;W=canvas.width;H=canvas.height;isMobile=W<768;wrappedLines=buildWrappedLines(isMobile);let maxLineLength=0;for(const line of wrappedLines){if(line.length>maxLineLength)maxLineLength=line.length;}
+const textHeight=wrappedLines.length;const maxCellW=Math.floor((W-2*8)/maxLineLength);const maxCellH=Math.floor((H-2*8)/textHeight);CELL=Math.max(6,Math.min(16,Math.min(maxCellW,maxCellH)));cols=Math.max(1,Math.floor(W/CELL));rows=Math.max(1,Math.floor(H/CELL));ctx.font=`${CELL}px monospace`;ctx.textBaseline='middle';ctx.textAlign='center';textGridDirty=true;}
+window.addEventListener('resize',resize);window.addEventListener('orientationchange',resize);resize();
+const VIDS=["videos/1.-A new kind of love .mp4","videos/2.-Soda City Funk.mp4","videos/3.-Mother Mother - Hayloft I.mp4","videos/4.-Up and down.mp4","videos/5.-DVRST - My Toy.mp4","videos/6.-Crumb - Locket.mp4","videos/7.-who can see who can provide.mp4","videos/8.-SPIT IN MY FACE!.mp4","videos/9.-megamango-risk.mp4"];let vidx=0;
+const bgv=document.getElementById('bgvid');bgv.volume=.8;
+function updBtn(){
+ window.__playGlyph=bgv.paused?' > ':' || ';
+ let n=(VIDS[vidx]||'').replace('videos/','').replace(/^[0-9]+[.-]+/,'').replace('.mp4','').trim();
+ window.__fizzTrack=n||'Unknown';
+ if(typeof buildWrappedLines==='function'){wrappedLines=buildWrappedLines(isMobile);}
+ textGridDirty=true;
+ const bp=document.getElementById('b-play');if(bp)bp.textContent=bgv.paused?'\u25B6':'\u275A\u275A';
+ const vn=document.getElementById('vname');if(vn)vn.textContent='\u266A '+(window.__fizzTrack);
+}
+function loadVid(i,auto){vidx=(i+VIDS.length)%VIDS.length;bgv.src=VIDS[vidx];vidData=null;updBtn();if(auto){bgv.muted=false;bgv.play().catch(()=>{bgv.muted=true;bgv.play().catch(()=>{});});}}
+bgv.addEventListener('play',updBtn);
+bgv.addEventListener('pause',updBtn);bgv.addEventListener('ended',()=>{if(vidx+1<VIDS.length)loadVid(vidx+1,true);});
+function toggleV(){if(bgv.paused){bgv.muted=false;bgv.play().catch(()=>{});}else bgv.pause();}function nextV(){loadVid(vidx+1,true);}function prevV(){loadVid(vidx-1,true);}
+
+
+vidx=Math.floor(Math.random()*VIDS.length);loadVid(vidx,false);
+document.getElementById('gate').addEventListener('click',function(){const g=document.getElementById('gate');if(g)g.remove();if(window.__startShow)window.__startShow();bgv.muted=false;bgv.play().catch(()=>{});updBtn();});
+
+
+(function(){
+function hitLink(x,y){
+ let maxLineLength=0;for(const line of wrappedLines){if(line.length>maxLineLength)maxLineLength=line.length;}
+ const startX=Math.max(0,Math.floor((cols-maxLineLength)/2));
+ const startY=Math.max(0,Math.floor((rows-wrappedLines.length)/2));
+ const r=canvas.getBoundingClientRect();
+ const px=(x-r.left)*(canvas.width/r.width),py=(y-r.top)*(canvas.height/r.height);
+ for(let i=0;i<wrappedLines.length;i++){
+  const low=wrappedLines[i].toLowerCase();if(!low.includes('discord')&&!low.includes('vrchat'))continue;
+  const off=startX+Math.floor((maxLineLength-wrappedLines[i].length)/2)*0;
+  const gy=startY+i;
+  if(py>=gy*CELL-4&&py<=(gy+1)*CELL+4&&px>=off*CELL&&px<=(off+wrappedLines[i].length)*CELL){return low.includes('discord')?'https://discordapp.com/users/1194990923990454315':'https://vrchat.com/home/user/usr_fc3fdc18-f953-4faa-a979-0c05dca131ac';}
+ }
+ return null;
+}
+
+function zoneAt(x,y){
+ let maxLineLength=0;for(const line of wrappedLines){if(line.length>maxLineLength)maxLineLength=line.length;}
+ const startX=Math.max(0,Math.floor((cols-maxLineLength)/2));
+ const startY=Math.max(0,Math.floor((rows-wrappedLines.length)/2));
+ const r=canvas.getBoundingClientRect();
+ const px=(x-r.left)*(canvas.width/r.width),py=(y-r.top)*(canvas.height/r.height);
+ for(let i=0;i<wrappedLines.length;i++){
+  const low=wrappedLines[i].toLowerCase();if(!low.includes('discord')&&!low.includes('vrchat'))continue;
+  const gy=startY+i;if(py<gy*CELL-5||py>(gy+1)*CELL+6)continue;
+  if(px>=startX*CELL&&px<=(startX+low.length)*CELL)return{k:'url',v:low.includes('discord')?'https://discordapp.com/users/1194990923990454315':'https://vrchat.com/home/user/usr_fc3fdc18-f953-4faa-a979-0c05dca131ac'};
+ }
+ for(let i=0;i<wrappedLines.length;i++){
+  if(wrappedLines[i].indexOf('<<')<0)continue;
+  const gy=startY+i;if(py<gy*CELL-5||py>(gy+1)*CELL+6)continue;
+  const ln=wrappedLines[i];const pa=ln.indexOf('<<');
+  const mid=(window.__playGlyph||'>').trim();const pm=ln.indexOf(mid,pa+2);const pn=ln.indexOf('>>',pm+mid.length);
+  const c0=Math.floor(px/CELL-startX);
+  if(pa>=0&&c0>=pa-1&&c0<=pa+2)return{k:'fn',fn:function(){loadVid(vidx-1,true)}};
+  if(pm>=0&&c0>=pm-1&&c0<=pm+mid.length)return{k:'fn',fn:toggleV};
+  if(pn>=0&&c0>=pn-1&&c0<=pn+2)return{k:'fn',fn:nextV};
+  break;
+ }
+ return null;
+}
+canvas.addEventListener('mousemove',e=>{const z=zoneAt(e.clientX,e.clientY);canvas.style.cursor=z?'pointer':'default';});
+canvas.addEventListener('click',e=>{const z=zoneAt(e.clientX,e.clientY);if(!z)return;if(z.k==='url')window.open(z.v,'_blank');else z.fn();});
+
+})();function buildWrappedLines(mobile){const lines=[];if(mobile){for(const line of BANNER_LEFT){lines.push(line);}
+lines.push("");for(const line of BANNER_RIGHT){lines.push(line);}
+lines.push("");}else{for(let i=0;i<BANNER_LEFT.length;i++){lines.push(BANNER_LEFT[i]+"    "+BANNER_RIGHT[i]);}
+lines.push("");lines.push(...BANNER2_LINES);lines.push("");}
+for(const line of CONTENT_LINES){if(mobile&&line.length>40){const words=line.split(' ');let currentLine='';for(const word of words){const testLine=currentLine?currentLine+' '+word:word;if(testLine.length<=40){currentLine=testLine;}else{if(currentLine){lines.push(currentLine);currentLine=word;}else{lines.push(word);currentLine='';}}}
+if(currentLine)lines.push(currentLine);}else{lines.push(line);}}
+lines.push('');
+textGridDirty=true;
+lines.push('   <<     '+(window.__playGlyph||'> ')+'     >>');
+lines.push('   ♪ '+((typeof window.__fizzTrack==='string'&&window.__fizzTrack)||'Unknown'));
+return lines;}
+const F2=0.5*(Math.sqrt(3.0)-1.0);const G2=(3.0-Math.sqrt(3.0))/6.0;const grad2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];const perm=new Uint8Array(512);const permMod8=new Uint8Array(512);(function initPerm(){const p=new Uint8Array(256);for(let i=0;i<256;i++)p[i]=i;let s=seed;for(let i=255;i>0;i--){s=(s*9301+49297)%233280;const j=Math.floor((s/233280)*(i+1));const tmp=p[i];p[i]=p[j];p[j]=tmp;}
+for(let i=0;i<512;i++){perm[i]=p[i&255];permMod8[i]=perm[i]%8;}})();function simplex2(xin,yin){let n0,n1,n2;const s=(xin+yin)*F2;const i=Math.floor(xin+s);const j=Math.floor(yin+s);const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;const i1=x0>y0?1:0;const j1=x0>y0?0:1;const x1=x0-i1+G2,y1=y0-j1+G2;const x2=x0-1.0+2.0*G2,y2=y0-1.0+2.0*G2;const ii=i&255,jj=j&255;const gi0=permMod8[ii+perm[jj]];const gi1=permMod8[ii+i1+perm[jj+j1]];const gi2=permMod8[ii+1+perm[jj+1]];let t0=0.5-x0*x0-y0*y0;n0=t0<0?0.0:(t0*=t0,t0*t0*(grad2[gi0][0]*x0+grad2[gi0][1]*y0));let t1=0.5-x1*x1-y1*y1;n1=t1<0?0.0:(t1*=t1,t1*t1*(grad2[gi1][0]*x1+grad2[gi1][1]*y1));let t2=0.5-x2*x2-y2*y2;n2=t2<0?0.0:(t2*=t2,t2*t2*(grad2[gi2][0]*x2+grad2[gi2][1]*y2));return 70.0*(n0+n1+n2);}
+function smoothWaveNoise(x,y,t){const s=0.002;const n1=simplex2(x*s+t*0.02,y*s-t*0.03);const warp1=250;const x1=x+n1*warp1;const y1=y+n1*warp1;const s2=0.005;const n2=simplex2(x1*s2-t*0.04,y1*s2+t*0.05);const warp2=120;const x2=x1+n2*warp2;const y2=y1+n2*warp2;const s3=0.01;const n3=simplex2(x2*s3+t*0.06,y2*s3-t*0.07);return(n1*0.5+n2*0.3+n3*0.2);}
+function flow(x,y,t){const a=smoothWaveNoise(x*0.7,y*0.7,t);return{x:Math.cos(a*3.14159+t*0.12)*warp,y:Math.sin(a*3.14159-t*0.12)*warp};}
+function cellToPxX(gx){return gx*CELL;}
+function cellToPxY(gy){return gy*CELL;}
+function lerp(a,b,t){return a+(b-a)*t;}
+function buildTextGrid(){const lines=wrappedLines;let maxLineLength=0;for(const line of lines){if(line.length>maxLineLength)maxLineLength=line.length;}
+const textWidth=maxLineLength;const textHeight=lines.length;const startX=Math.max(0,Math.floor((cols-textWidth)/2));const startY=Math.max(0,Math.floor((rows-textHeight)/2));correctTextGrid=new Array(rows);for(let gy=0;gy<rows;gy++){correctTextGrid[gy]=new Array(cols);for(let gx=0;gx<cols;gx++){correctTextGrid[gy][gx]={char:' ',brightness:0,isText:false};}}
+for(let lineIdx=0;lineIdx<lines.length;lineIdx++){const line=lines[lineIdx];const gy=startY+lineIdx;if(gy<0||gy>=rows)continue;const lineProgress=Math.min(1,textProgress);const visibleChars=Math.floor(line.length*lineProgress);for(let charIdx=0;charIdx<visibleChars;charIdx++){const gx=startX+charIdx;if(gx<0||gx>=cols)continue;const ch=line[charIdx];if(ch!==' '){correctTextGrid[gy][gx]={char:ch,brightness:1.0,isText:true};}}}
+const hotLines=[];for(let li=0;li<lines.length;li++){const lw=lines[li].toLowerCase();if(lw.includes('discord')||lw.includes('vrchat')||lw.includes('<<'))hotLines.push(li);}
+for(const li of hotLines){const gy2=startY+li;if(gy2>=0&&gy2<rows){const line=lines[li];for(let ci=0;ci<line.length;ci++){const gx2=startX+ci;if(gx2>=0&&gx2<cols&&correctTextGrid[gy2][gx2]&&correctTextGrid[gy2][gx2].isText){correctTextGrid[gy2][gx2].hot=true;}}}}
+renderTextGrid=correctTextGrid.map(row=>row.map(cell=>({...cell})));textGridDirty=false;}
+function updateGlitches(dt){const timeSec=performance.now()*0.001;if(glitchBoostFrames>0){glitchBoostFrames--;}
+if(glitchActive){glitchFramesRemaining--;if(glitchFramesRemaining<=0){for(const pos of glitchPositions){if(pos.gy>=0&&pos.gy<rows&&pos.gx>=0&&pos.gx<cols){renderTextGrid[pos.gy][pos.gx].char=pos.originalChar;}}
+glitchActive=false;glitchPositions=[];return;}
+return;}
+if(rareMessageActive){rareMessageFramesRemaining--;if(rareMessageFramesRemaining<=0){for(const pos of rareMessagePositions){if(pos.gy>=0&&pos.gy<rows&&pos.gx>=0&&pos.gx<cols){renderTextGrid[pos.gy][pos.gx].char=pos.originalChar;}}
+rareMessageActive=false;rareMessagePositions=[];rareMessageLine=-1;rareNextTriggerTime=timeSec+300+Math.random()*300;return;}
+return;}
+if(textPhase==='done'){if(!rareMessageActive&&timeSec>=rareNextTriggerTime){if(Math.random()<0.001){spawnRareMessage(timeSec);return;}}
+if(!glitchActive&&!rareMessageActive){const baseChance=0.008;const boostMultiplier=glitchBoostFrames>0?5:1;const glitchChance=baseChance*boostMultiplier;if(Math.random()<glitchChance){spawnGlitch(timeSec);}}}}
+function spawnGlitch(timeSec){const textLines=[];for(let gy=0;gy<rows;gy++){for(let gx=0;gx<cols;gx++){if(correctTextGrid[gy]&&correctTextGrid[gy][gx]&&correctTextGrid[gy][gx].isText){textLines.push(gy);break;}}}
+if(textLines.length>0){const targetGy=textLines[Math.floor(Math.random()*textLines.length)];const segments=[];let segmentStart=-1;for(let gx=0;gx<cols;gx++){if(correctTextGrid[targetGy][gx]&&correctTextGrid[targetGy][gx].isText){if(segmentStart===-1)segmentStart=gx;}else if(segmentStart!==-1){segments.push({start:segmentStart,end:gx-1});segmentStart=-1;}}
+if(segmentStart!==-1){segments.push({start:segmentStart,end:cols-1});}
+if(segments.length>0){const segment=segments[Math.floor(Math.random()*segments.length)];const segmentLength=segment.end-segment.start+1;const glitchRatio=0.6+Math.random()*0.4;const glitchLength=Math.max(1,Math.floor(segmentLength*glitchRatio));const maxStart=segment.end-glitchLength+1;const glitchStart=segment.start+Math.floor(Math.random()*(maxStart-segment.start+1));glitchFramesRemaining=30+Math.floor(Math.random()*90);glitchPositions=[];for(let i=0;i<glitchLength;i++){const gx=glitchStart+i;if(gx>=0&&gx<cols){const originalChar=renderTextGrid[targetGy][gx].char;const glitchChar=GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)];renderTextGrid[targetGy][gx].char=glitchChar;glitchPositions.push({gx,gy:targetGy,originalChar});}}
+glitchActive=true;}}}
+function spawnRareMessage(timeSec){const message=RARE_MESSAGES[Math.floor(Math.random()*RARE_MESSAGES.length)];const textLines=[];for(let gy=0;gy<rows;gy++){for(let gx=0;gx<cols;gx++){if(correctTextGrid[gy]&&correctTextGrid[gy][gx]&&correctTextGrid[gy][gx].isText){textLines.push(gy);break;}}}
+if(textLines.length>0){const targetGy=textLines[Math.floor(Math.random()*textLines.length)];const messageLength=message.length;const startX=Math.max(0,Math.floor((cols-messageLength)/2));rareMessageFramesRemaining=180+Math.floor(Math.random()*120);rareMessagePositions=[];for(let i=0;i<messageLength;i++){const gx=startX+i;if(gx>=0&&gx<cols){const originalChar=renderTextGrid[targetGy][gx].char;renderTextGrid[targetGy][gx].char=message[i];rareMessagePositions.push({gx,gy:targetGy,originalChar});}}
+rareMessageActive=true;rareMessageLine=targetGy;}
+rareNextTriggerTime=timeSec+300+Math.random()*300;}
+function drawFrame(t){const timeSec=t*0.001;const dt=timeSec-(lastTime||timeSec);lastTime=timeSec;const flowTime=timeSec*speed*60;const warpedTime=flowTime+Math.sin(flowTime*0.101)*2+Math.cos(flowTime*0.0707)*1.5;const elapsed=(timeSec-phaseStartTime);if(textPhase==='typing'){textProgress=Math.min(1,elapsed/TEXT_TYPE_DURATION);if(textProgress>=1){textPhase='done';textProgress=1;glitchBoostFrames=GLITCH_BOOST_DURATION;rareNextTriggerTime=timeSec+300+Math.random()*300;}}
+if(Math.abs(textProgress-lastTextProgress)>0.001){textGridDirty=true;lastTextProgress=textProgress;}
+updateGlitches(dt);ctx.fillStyle='#050505';ctx.fillRect(0,0,W,H);if(textGridDirty)buildTextGrid();for(let gy=0;gy<rows;gy++){for(let gx=0;gx<cols;gx++){const px=cellToPxX(gx);const py=cellToPxY(gy);const textCell=renderTextGrid[gy]?renderTextGrid[gy][gx]:null;if(textCell&&textCell.isText&&textCell.char!==' '){const isHot=!!textCell.hot;ctx.fillStyle='#ffffff';ctx.shadowBlur=isHot?24:12;ctx.shadowColor=isHot?'#9fd4ff':'#ffffff';if(isHot)ctx.font='bold '+CELL+'px monospace';ctx.fillText(textCell.char,px+CELL/2,py+CELL/2);if(isHot){ctx.shadowBlur=0;ctx.fillRect(px+1,py+CELL*0.85,CELL-2,Math.max(1,CELL*0.09));}if(isHot)ctx.font=CELL+'px monospace';ctx.shadowBlur=0;}else{const f1=flow(px,py,warpedTime);const f2=flow(px+f1.x,py+f1.y,warpedTime+1.5);const sx=px+f1.x+f2.x*0.7;const sy=py+f1.y+f2.y*0.7;const n=smoothWaveNoise(sx,sy,warpedTime);const b=(Math.tanh(n)+1)*0.5;const idx=Math.min(NOISE_ATLAS.length-1,Math.floor(b*(NOISE_ATLAS.length-1)*0.9));const ch=NOISE_ATLAS[idx];const colorIdx=Math.min(GRAY_GRAD.length-1,Math.floor(b*(GRAY_GRAD.length-1)*0.85));const a=GRAY_GRAD[colorIdx];const b2=GRAY_GRAD[Math.min(colorIdx+1,GRAY_GRAD.length-1)];const f=(b*(GRAY_GRAD.length-1)*0.85)%1;const color=(typeof vidTint==="function"&&vidTint(px,py,b))||`rgb(${lerp(a[0],b2[0],f)|0},${lerp(a[1],b2[1],f)|0},${lerp(a[2],b2[2],f)|0})`;ctx.shadowBlur=b>0.7?4:0;ctx.shadowColor=color;ctx.fillStyle=color;ctx.fillText(ch,px+CELL/2,py+CELL/2);ctx.shadowBlur=0;}}}}
+let lastTime=0;phaseStartTime=1e12;window.__startShow=function(){phaseStartTime=performance.now()*0.001;};function tick(ms){sampleVid(ms);drawFrame(ms);requestAnimationFrame(tick);}
+requestAnimationFrame(tick);const mediaQuery=window.matchMedia('(prefers-reduced-motion: reduce)');if(mediaQuery.matches){}
+document.getElementById('b-prev').addEventListener('click',function(){prevV();});
+document.getElementById('b-play').addEventListener('click',function(){toggleV();});
+document.getElementById('b-next').addEventListener('click',function(){nextV();});
+function layoutVctrl(){
+ const box=document.getElementById('vctrl');if(!box)return;
+ const cell=CELL;
+ let maxLineLength=0;for(const line of wrappedLines){if(line.length>maxLineLength)maxLineLength=line.length;}
+ const startX=Math.max(0,Math.floor((cols-maxLineLength)/2));
+ const startY=Math.max(0,Math.floor((rows-wrappedLines.length)/2));
+ let s1=-1;
+ for(let i=0;i<wrappedLines.length;i++){if(wrappedLines[i].indexOf('<<')>=0){s1=i;break;}}
+ if(s1<0){box.style.display='none';return;}
+ const gy=startY+s1;
+ function put(id,cx,len){const b=document.getElementById(id);if(!b)return;b.style.left=((startX+cx)*cell)+'px';b.style.top=(gy*cell)+'px';b.style.width=(len*cell)+'px';b.style.height=cell+'px';b.style.display='block';}
+ put('b-prev',3,2);put('b-play',9,1);put('b-next',16,2);
+ box.style.display='block';
+}
+window.addEventListener('resize',()=>setTimeout(layoutVctrl,30));
+setTimeout(layoutVctrl,50);setTimeout(layoutVctrl,600);setTimeout(layoutVctrl,1500);
+})();</script>
+</body>
+</html>
