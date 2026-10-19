@@ -452,33 +452,55 @@ export class Globe {
   // Selecting anywhere on the planet marks it. A land cell also opens the
   // panel; open water just gets the ring so the pick is visible.
   selectAtPoint(px, py) {
+    // Dots first: one can hang past the limb, where the bare pixel is off the
+    // disc and would otherwise be thrown away.
+    const cell = this.cellAtPoint(px, py);
+    if (cell) {
+      this.selectedMarker = { lat: cell.lat + 0.5, lon: cell.lon + 0.5 };
+      this.selectCoord({ ...cell, x: px, y: py });
+      return;
+    }
     const ll = this.latLonAtPoint(px, py);
     if (!ll) {
       this.selectedMarker = null;
       return;
     }
-    const cell = this.cellAtPoint(px, py);
-    if (cell) {
-      this.selectedMarker = { lat: cell.lat + 0.5, lon: cell.lon + 0.5 };
-      this.selectCoord({ ...cell, x: px, y: py });
-    } else {
-      this.selectedMarker = { lat: ll.lat, lon: ll.lon };
-      this.selectedCoord = null;
-      this.ui.closePanel?.();
-    }
+    this.selectedMarker = { lat: ll.lat, lon: ll.lon };
+    this.selectedCoord = null;
+    this.ui.closePanel?.();
   }
 
-  // The lattice is the claim grid, so a pointer is inside exactly one cell.
+  // A cell is pickable only on land, and only inside the claimable range.
+  validCell(lat, lon) {
+    if (lat < -90 || lat > 89) return null;
+    if (lon < -180 || lon > 179) return null;
+    return this.landCells?.has(`${lat},${lon}`) ? { lat, lon } : null;
+  }
+
+  // The dot you are nearest to on screen wins: dots are painted lifted off the
+  // surface by a per-dot amount, so unprojecting the pixel alone picks a cell
+  // one ring out from the dot under the pointer. Water has no dots and still
+  // falls back to unprojecting.
   cellAtPoint(px, py) {
+    const r = Math.max(2, this.baseRadius() * 0.013);
+    let best = null, bestD2 = r * r;
+    for (const dot of this.dots) {
+      if (!dot.painted) continue;
+      const dx = dot.px - px, dy = dot.py - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) { bestD2 = d2; best = dot; }
+    }
+    if (best) {
+      const cell = this.validCell(Math.floor(best.lat), Math.floor(best.lon));
+      if (cell) return cell;
+    }
     const ll = this.latLonAtPoint(px, py);
-    if (!ll) return null;
-    const cell = { lat: Math.floor(ll.lat), lon: Math.floor(ll.lon) };
-    if (cell.lat < -90 || cell.lat > 89) return null;
-    if (cell.lon < -180 || cell.lon > 179) return null;
-    return this.landCells?.has(`${cell.lat},${cell.lon}`) ? cell : null;
+    return ll ? this.validCell(Math.floor(ll.lat), Math.floor(ll.lon)) : null;
   }
 
   // Where on the planet a screen pixel lands, land or not. Null off the disc.
+  // Straight unprojection: the water lattice is painted flat, so this is exact
+  // for water. Land dots are painted lifted, so cellAtPoint snaps to a dot.
   latLonAtPoint(px, py) {
     const radius = this.baseRadius();
     if (radius <= 0) return null;
@@ -690,7 +712,10 @@ export class Globe {
   // which only grow where the true glow is bright.
   reliefAt(dot, b, t) {
     const v = this.rawGlow(b);
-    return Math.min(MAX_RELIEF, LIFT * b + SPIKE_LIFT * this.spikeFor(dot, t, v));
+    // The same lift the dot is painted at, floor included, so claim markers and
+    // the pick ring sit exactly on the dot you can see.
+    const rb = Math.max(MIN_DOT_BRIGHT, b);
+    return Math.min(MAX_RELIEF, LIFT * rb + SPIKE_LIFT * this.spikeFor(dot, t, v));
   }
 
   drawDots(ctx) {
@@ -727,7 +752,7 @@ export class Globe {
     for (const dot of this.dots) {
       // Dots sit at the centre of their cell, exactly where a claim lands.
       const p = this.project(dot.lat + 0.5, dot.lon + 0.5);
-      if (p.z <= 0.03) continue;
+      if (p.z <= 0.03) { dot.painted = false; continue; }
       const ring = p.z > 0.62 ? 0 : p.z > 0.28 ? 1 : 2;
       const b = dotBrightness(dot, t, this.reduceMotion);
       const rb = Math.max(MIN_DOT_BRIGHT, b);
@@ -735,6 +760,8 @@ export class Globe {
       const v = this.rawGlow(b);
       const s = this.spikeFor(dot, t, v);
       const q = this.lifted(p, Math.min(MAX_RELIEF, LIFT * rb + SPIKE_LIFT * s));
+      // Where this dot actually landed, so a click can be matched to it.
+      dot.px = q.x; dot.py = q.y; dot.painted = true;
       land[ring][level].push(
         q.x,
         q.y,
@@ -877,8 +904,11 @@ export class Globe {
     if (!p.visible) return;
     const pos = spherePoint(this.selectedMarker.lat, this.selectedMarker.lon);
     const t = this.glowTime / 1000;
-    const b = dotBrightness(pos, t, this.reduceMotion);
-    const q = this.lifted(p, this.reliefAt(pos, b, t));
+    // Land dots are painted lifted, the water lattice is flat: the ring has to
+    // land on whichever the click hit, or it drifts off the pointer.
+    const q = this.selectedCoord
+      ? this.lifted(p, this.reliefAt(pos, dotBrightness(pos, t, this.reduceMotion), t))
+      : { x: p.x, y: p.y };
     const cellSize = Math.max(3, this.baseRadius() / 150);
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
     ctx.lineWidth = 2;
