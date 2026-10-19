@@ -46,8 +46,8 @@ export const GLOW_LEVELS = 12;
 // light. Because it is read from each dot's position on the sphere, the pattern
 // turns with the globe instead of pulsing from the screen centre.
 export function dotBrightness(dot, timeSeconds, reduceMotion) {
-  const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
   const t = timeSeconds;
+  const { x, y, z } = driftSample(dot, t);
   const n =
     Math.sin(x * 8.3 + y * 4.6 + z * 3.4 + t * 1.0) +
     Math.sin(x * 5.8 - y * 7.4 + z * 4.2 - t * 0.85) +
@@ -72,6 +72,16 @@ function spherePoint(lat, lon) {
     y: Math.sin(latRad),
     z: Math.cos(latRad) * Math.cos(lonRad),
   };
+}
+
+// Slow westward sweep over the sphere so bright patches migrate across the
+// globe instead of gluing themselves to the same cells forever. The local
+// phase shimmer in dotBrightness/spikeFor still rides on top of this drift.
+function driftSample(dot, t) {
+  const phase = t * 0.08; // one full sweep ~78s
+  const c = Math.cos(phase), s = Math.sin(phase);
+  const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
+  return { x: x * c + z * s, y, z: -x * s + z * c };
 }
 
 // How far the brightest dots are lifted off the surface, as a fraction of the
@@ -250,8 +260,8 @@ export class Globe {
   // nothing, and as a patch fades its shapes shrink away with it.
   spikeFor(dot, t, v) {
     if (v < 0.35) return 0;
-    const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
-    // Fixed in the world: the shapes never travel, only their height shakes.
+    const { x, y, z } = driftSample(dot, t);
+    // The mask drifts with the glow field; each dot still shakes on its own rhythm.
     const e =
       Math.sin(x * 9 + y * 7 + z * 5) *
         Math.sin(x * 7 - y * 11 + z * 6) +
