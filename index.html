@@ -64,7 +64,7 @@
 (()=>{
   /* ---- PNG assets (static images used to color the ASCII background) ---- */
   const PNGS=["images/12.png","images/11.png","images/13.png","images/13.png"];
-  const grayBoost=[330,210,180,45];
+  const grayBoost=[330,210,45,180];
   const gifCvs=PNGS.map(()=>{const c=document.createElement('canvas');c.width=120;c.height=90;return c;});
   const gifData=PNGS.map(()=>null);
   const gifBright=PNGS.map(()=>255);
@@ -242,12 +242,12 @@
   const SECTIONS=[
     {eyebrow:"SECTION 01",title:"ABOUT ME",lead:"A little about who I am, what I do and what drives me.",btn:"ABOUT ME",url:"https://fizzfluff.mywire.org/aboutfizz-main/"},
     {eyebrow:"SECTION 02",title:"MY EXTRAS",lead:"Projects and experiments I have built, collected and shared along the way.",btn:"VIEW MORE",url:"https://fizzfluff.mywire.org/abtme-main/"},
-    {eyebrow:"SECTION 03",title:"WEB OS",lead:"A web-based desktop experience — a OS-like interface in the browser.",btn:"START SYSTEM",url:"https://fizzfluff.mywire.org/terminal-main/"},
-    {eyebrow:"SECTION 04",title:"CLAIM MAP",lead:"A collaborative world globe — click a cell and leave your mark on it.",btn:"OPEN GLOBE",url:"world/"}
+    {eyebrow:"SECTION 03",title:"FIZZ MAP",lead:"A collaborative world globe — click a cell and leave your mark on it.",btn:"OPEN GLOBE",url:"world/"},
+    {eyebrow:"SECTION 04",title:"WEB OS",lead:"A web-based desktop experience — a OS-like interface in the browser.",btn:"START SYSTEM",url:"https://fizzfluff.mywire.org/terminal-main/"}
   ];
   const N=SECTIONS.length;
   // On mobile the 5x7 banner is too wide for one line, so split each title into two lines.
-  const TITLE_PARTS={"ABOUT ME":["ABOUT","ME"],"MY EXTRAS":["MY","EXTRAS"],"PORTFOLIO":["PORT","FOLIO"],"WEB OS":["WEB","OS"],"CLAIM MAP":["CLAIM","MAP"]};
+  const TITLE_PARTS={"ABOUT ME":["ABOUT","ME"],"MY EXTRAS":["MY","EXTRAS"],"PORTFOLIO":["PORT","FOLIO"],"WEB OS":["WEB","OS"],"FIZZ MAP":["FIZZ","MAP"]};
   const AUTOPLAY_MS=8000;
 
   let currentIndex=0;
