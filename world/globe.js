@@ -43,11 +43,12 @@ export function buildLandCells(rings, step = 1) {
 export const GLOW_LEVELS = 12;
 
 // A drifting world-space field: overlapping waves make moving patches of
-// light. Because it is read from each dot's position on the sphere, the pattern
-// turns with the globe instead of pulsing from the screen centre.
+// light. Each dot is sampled at its fixed spot on the sphere, so the pattern
+// rides with the globe and the local phase shimmer slides patches around over
+// time instead of pulsing from the screen centre.
 export function dotBrightness(dot, timeSeconds, reduceMotion) {
+  const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
   const t = timeSeconds;
-  const { x, y, z } = driftSample(dot, t);
   const n =
     Math.sin(x * 8.3 + y * 4.6 + z * 3.4 + t * 1.0) +
     Math.sin(x * 5.8 - y * 7.4 + z * 4.2 - t * 0.85) +
@@ -74,15 +75,7 @@ function spherePoint(lat, lon) {
   };
 }
 
-// Slow westward sweep over the sphere so bright patches migrate across the
-// globe instead of gluing themselves to the same cells forever. The local
-// phase shimmer in dotBrightness/spikeFor still rides on top of this drift.
-function driftSample(dot, t) {
-  const phase = t * 0.08; // one full sweep ~78s
-  const c = Math.cos(phase), s = Math.sin(phase);
-  const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
-  return { x: x * c + z * s, y, z: -x * s + z * c };
-}
+// How far the brightest dots are lifted off the surface, as a fraction of the
 
 // How far the brightest dots are lifted off the surface, as a fraction of the
 // globe radius, and how much the noise shapes add on top.
@@ -260,13 +253,15 @@ export class Globe {
   // nothing, and as a patch fades its shapes shrink away with it.
   spikeFor(dot, t, v) {
     if (v < 0.35) return 0;
-    const { x, y, z } = driftSample(dot, t);
-    // The mask drifts with the glow field; each dot still shakes on its own rhythm.
+    const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
+    // World-fixed shape: a lit dot stays lit (only its height shakes). A slow
+    // phase creeps the patch boundaries, so the active spikes keep reappearing
+    // in fresh places rather than living on the same cells forever — no panning.
     const e =
-      Math.sin(x * 9 + y * 7 + z * 5) *
-        Math.sin(x * 7 - y * 11 + z * 6) +
-      0.6 * Math.sin(x * 17 + y * 13 - z * 9) *
-        Math.sin(x * 13 - y * 19 + z * 11);
+      Math.sin(x * 9 + y * 7 + z * 5 + t * 0.4) *
+        Math.sin(x * 7 - y * 11 + z * 6 - t * 0.25) +
+      0.6 * Math.sin(x * 17 + y * 13 - z * 9 + t * 0.35) *
+        Math.sin(x * 13 - y * 19 + z * 11 - t * 0.2);
     const m = Math.min(1, Math.max(0, (e - 0.45) / 0.75));
     const mask = m * m * (3 - 2 * m);
     if (mask <= 0) return 0;
