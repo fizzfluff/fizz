@@ -1,7 +1,15 @@
 -- FIZZ MAP schema. Run once in the Supabase SQL editor (or psql).
--- Anonymous writes are allowed; the client id header keeps edits to your own row.
+-- Anonymous writes are allowed; the x-client-id header keeps edits to your own row.
+--
+-- This file RESETS the database: everything below is dropped and recreated, so
+-- running it deletes every existing claim and message.
 
-create table if not exists public.contributions (
+drop view if exists public.cell_summary;
+drop view if exists public.stats;
+drop view if exists public.leaderboard;
+drop table if exists public.contributions;
+
+create table public.contributions (
   id bigint generated always as identity primary key,
   lat integer not null check (lat between -90 and 89),
   lon integer not null check (lon between -180 and 179),
@@ -9,12 +17,19 @@ create table if not exists public.contributions (
   username text not null check (char_length(username) between 1 and 32),
   color text not null check (char_length(color) between 1 and 32),
   message text not null check (char_length(message) between 1 and 280),
+  is_claim boolean not null default false,
   created_at timestamptz not null default now(),
-  unique (lat, lon, user_id)
+  unique (lat, lon, user_id)  -- one message per user per dot
 );
 
-create index if not exists contributions_cell_idx on public.contributions (lat, lon);
-create index if not exists contributions_recent_idx on public.contributions (created_at desc);
+create index contributions_cell_idx on public.contributions (lat, lon);
+create index contributions_recent_idx on public.contributions (created_at desc);
+
+-- A user owns at most one dot, and a dot is owned by at most one user.
+create unique index contributions_one_claim_per_user
+  on public.contributions (user_id) where is_claim;
+create unique index contributions_one_claim_per_dot
+  on public.contributions (lat, lon) where is_claim;
 
 alter table public.contributions enable row level security;
 
@@ -40,25 +55,26 @@ create policy "delete own" on public.contributions
     user_id = coalesce(current_setting('request.headers', true)::json->>'x-client-id', '')
   );
 
-create or replace view public.cell_summary with (security_invoker = true) as
+-- A dot's colour is its owner's; unowned dots fall back to the newest message.
+create view public.cell_summary with (security_invoker = true) as
 select
   lat,
   lon,
   count(distinct user_id)::int as contributor_count,
   count(*)::int as contribution_count,
   max(created_at) as last_activity,
-  (array_agg(color order by created_at desc))[1] as color
+  (array_agg(color order by is_claim desc, created_at desc))[1] as color
 from public.contributions
 group by lat, lon;
 
-create or replace view public.stats with (security_invoker = true) as
+create view public.stats with (security_invoker = true) as
 select
   count(*)::int as total_contributions,
   count(distinct user_id)::int as unique_contributors,
   count(distinct (lat, lon))::int as active_cells
 from public.contributions;
 
-create or replace view public.leaderboard with (security_invoker = true) as
+create view public.leaderboard with (security_invoker = true) as
 select
   user_id,
   (array_agg(username order by created_at desc))[1] as username,

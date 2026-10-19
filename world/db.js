@@ -56,4 +56,8 @@ export const db = {
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(row),
   }),
+  remove: (path) => request(path, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=representation' },
+  }),
 };

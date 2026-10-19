@@ -1,11 +1,18 @@
 import { db, uid, username, userColor } from './db.js';
 
+// A publish claims the dot only when the dot is unclaimed, this browser owns no
+// dot yet, and it has not already posted on this one. Otherwise it is a message.
+export function shouldClaim(dotHasOwner, iOwnADot, alreadyPosted) {
+  return !dotHasOwner && !iOwnADot && !alreadyPosted;
+}
+
 export class UI {
   constructor() {
     this.globe = null;
     this.currentView = 'globe';
     this.selectedCell = null;
     this.user = null;
+    this.myClaim = null;
   }
 
   async init(globe) {
@@ -35,7 +42,20 @@ export class UI {
   // ---- data -------------------------------------------------------------
 
   async loadInitialData() {
-    await this.refreshState();
+    await Promise.all([this.refreshState(), this.loadMyClaim()]);
+  }
+
+  // The one dot this browser has claimed, or null. Cached so opening a dot or
+  // publishing never needs an extra round trip.
+  async loadMyClaim() {
+    try {
+      const rows = await db.select(
+        `contributions?user_id=eq.${this.user.id}&is_claim=eq.true&select=lat,lon&limit=1`
+      );
+      this.myClaim = rows && rows[0] ? { lat: rows[0].lat, lon: rows[0].lon } : null;
+    } catch (e) {
+      console.error('Failed to load claim', e);
+    }
   }
 
   async refreshState() {
@@ -92,6 +112,7 @@ export class UI {
           this.selectedCell.lat !== target.lat ||
           this.selectedCell.lon !== target.lon) return;
 
+      const owner = (rows || []).find((r) => r.is_claim) || (rows && rows[0]);
       const cell = (rows && rows.length)
         ? {
             lat: target.lat,
@@ -99,7 +120,7 @@ export class UI {
             contributor_count: new Set(rows.map((r) => r.user_id)).size,
             contribution_count: rows.length,
             last_activity: rows[0].created_at,
-            color: rows[0].color,
+            color: owner.color,
           }
         : this.globe.cells.get(`${target.lat},${target.lon}`) || null;
 
@@ -139,6 +160,19 @@ export class UI {
       </div>
     `;
 
+    const owner = contributions.find((c) => c.is_claim);
+    if (mine) {
+      html += `
+        <div class="panel-note">
+          <span>${mine.is_claim ? 'You own this dot.' : 'You left a message here.'}</span>
+          <button type="button" class="inline-btn" id="remove-contrib">Remove</button>
+        </div>`;
+    } else if (owner) {
+      html += `<div class="panel-note"><span>Owner: ${this.escapeHtml(owner.username)} — you can still leave one message.</span></div>`;
+    } else if (this.myClaim) {
+      html += `<div class="panel-note"><span>You already claimed another dot — this will be a message, not a claim.</span></div>`;
+    }
+
     html += this.renderContributionForm(coord, cell, mine);
 
     return html;
@@ -148,7 +182,7 @@ export class UI {
     if (!contributions.length) return '<div class="panel-empty">No contributions yet</div>';
     return contributions.slice(0, 10).map(c => `
       <div class="msg">
-        <div class="msg-header"><span class="msg-author">${this.escapeHtml(c.username)}</span><span class="msg-time">${new Date(c.created_at).toLocaleString()}</span></div>
+        <div class="msg-header"><span class="msg-author">${this.escapeHtml(c.username)}${c.is_claim ? ' · OWNER' : ''}</span><span class="msg-time">${new Date(c.created_at).toLocaleString()}</span></div>
         <div class="msg-text">${this.escapeHtml(c.message)}</div>
       </div>
     `).join('');
@@ -158,11 +192,11 @@ export class UI {
     const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#b983ff', '#ff8fab', '#00d4d4', '#ffa500', '#ffffff'];
     const chosen = mine?.color || colors[0];
     const message = mine?.message ? this.escapeHtml(mine.message) : '';
-    const label = mine ? 'Update contribution' : 'Publish';
+    const label = mine ? 'Update message' : 'Publish';
     return `
       <form class="contribute-form" id="contribute-form">
         <div class="form-row">
-          <label class="form-label" for="contrib-message">${mine ? 'Your contribution' : 'Message'}</label>
+          <label class="form-label" for="contrib-message">${mine ? 'Your message' : 'Message'}</label>
           <textarea class="form-input" id="contrib-message" name="message" rows="3" maxlength="280" placeholder="Leave your mark..." required>${message}</textarea>
           <span class="char-count"><span id="char-count">${mine?.message?.length || 0}</span>/280</span>
         </div>
@@ -173,7 +207,7 @@ export class UI {
           </div>
         </div>
         <button type="submit" class="submit-btn" id="submit-contrib">${label}</button>
-        ${mine ? `<div class="form-hint">One contribution per cell — editing replaces it.</div>` : ''}
+        ${mine ? `<div class="form-hint">One message per dot — editing replaces it.</div>` : ''}
       </form>
     `;
   }
@@ -181,6 +215,8 @@ export class UI {
   bindPanelEvents(coord, cell, contributions = []) {
     const mine = this.user ? contributions.find(c => c.user_id === this.user.id) : null;
     const editing = Boolean(mine);
+    const owner = contributions.find(c => c.is_claim);
+    const claimThisDot = shouldClaim(Boolean(owner), Boolean(this.myClaim), editing);
     const msgInput = document.getElementById('contrib-message');
     const charCount = document.getElementById('char-count');
     const colorOptions = document.querySelectorAll('#color-picker .color-option');
@@ -198,6 +234,27 @@ export class UI {
         opt.classList.add('selected');
         selectedColor = opt.dataset.color;
       });
+    });
+
+    document.getElementById('remove-contrib')?.addEventListener('click', async () => {
+      const btn = document.getElementById('remove-contrib');
+      btn.disabled = true;
+      btn.textContent = 'Removing...';
+      try {
+        await db.remove(
+          `contributions?lat=eq.${coord.lat}&lon=eq.${coord.lon}&user_id=eq.${this.user.id}`
+        );
+        if (mine.is_claim) this.myClaim = null;
+        // Drop the local colour; refreshState restores it if others still chat here.
+        this.globe.cells.delete(`${coord.lat},${coord.lon}`);
+        this.toast(mine.is_claim ? 'Claim removed — you can claim another dot' : 'Message removed');
+        await this.refreshPanel();
+        this.refreshState();
+      } catch (err) {
+        this.toast(err.status ? `Request failed (${err.status})` : 'Network error — nothing removed', true);
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+      }
     });
 
     form?.addEventListener('submit', async e => {
@@ -223,16 +280,19 @@ export class UI {
             username: this.user.username,
             message,
             color: selectedColor,
+            is_claim: claimThisDot,
           });
+          if (claimThisDot) this.myClaim = { lat: coord.lat, lon: coord.lon };
         }
 
-        this.toast(editing ? 'Contribution updated' : 'Contribution published');
+        this.toast(editing ? 'Message updated' : (claimThisDot ? 'Dot claimed' : 'Message published'));
         await this.refreshPanel();
         this.refreshState();
         if (this.currentView === 'activity') this.renderActivity();
       } catch (err) {
         if (err.status === 409) {
-          this.toast('You already contributed to this cell', true);
+          this.toast('Already saved — refreshing', true);
+          await this.loadMyClaim();
           this.refreshPanel();
         } else {
           this.toast(err.status ? `Request failed (${err.status})` : 'Network error — not saved', true);
@@ -241,7 +301,7 @@ export class UI {
         const live = document.getElementById('submit-contrib');
         if (live) {
           live.disabled = false;
-          live.textContent = editing ? 'Update contribution' : 'Publish';
+          live.textContent = editing ? 'Update message' : 'Publish';
         }
       }
     });
