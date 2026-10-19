@@ -1,4 +1,4 @@
--- ClaimTheMap schema. Run once in the Supabase SQL editor (or psql).
+-- FIZZ MAP CHAT schema. Run once in the Supabase SQL editor (or psql).
 -- Anonymous writes are allowed; the client id header keeps edits to your own row.
 
 create table if not exists public.contributions (

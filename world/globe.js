@@ -145,7 +145,7 @@ export class Globe {
   // A blank canvas is useless to debug, so paint the failure itself.
   fatal(err) {
     this.fatalError = err;
-    console.error('[ClaimTheMap] render stopped:', err);
+    console.error('[FIZZ MAP CHAT] render stopped:', err);
     const ctx = this.ctx;
     const { width, height } = this.getCanvasSize();
     ctx.fillStyle = '#000';
