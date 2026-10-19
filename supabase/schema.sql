@@ -55,6 +55,25 @@ create policy "delete own" on public.contributions
     user_id = coalesce(current_setting('request.headers', true)::json->>'x-client-id', '')
   );
 
+-- A message may only land on a dot that is already claimed, so a fresh dot can
+-- be claimed but not chatted on.
+create or replace function public.contributions_require_claim()
+returns trigger language plpgsql as $$
+begin
+  if not new.is_claim and not exists (
+    select 1 from public.contributions
+    where lat = new.lat and lon = new.lon and is_claim
+  ) then
+    raise exception 'dot is not claimed' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists contributions_require_claim on public.contributions;
+create trigger contributions_require_claim
+  before insert on public.contributions
+  for each row execute function public.contributions_require_claim();
+
 -- A dot's colour is its owner's; unowned dots fall back to the newest message.
 create view public.cell_summary with (security_invoker = true) as
 select

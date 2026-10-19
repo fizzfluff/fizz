@@ -6,6 +6,14 @@ export function shouldClaim(dotHasOwner, iOwnADot, alreadyPosted) {
   return !dotHasOwner && !iOwnADot && !alreadyPosted;
 }
 
+// Posting is allowed on a dot that is already claimed by anyone, on a dot this
+// browser already posted to, or when the post is the claim itself. A dot that
+// is unclaimed and not ours to claim cannot be messaged.
+export function canPost(dotHasOwner, iOwnADot, alreadyPosted) {
+  return Boolean(dotHasOwner) || Boolean(alreadyPosted)
+    || shouldClaim(dotHasOwner, iOwnADot, alreadyPosted);
+}
+
 export class UI {
   constructor() {
     this.globe = null;
@@ -172,11 +180,13 @@ export class UI {
         </div>`;
     } else if (owner) {
       html += `<div class="panel-note"><span>Owner: ${this.escapeHtml(owner.username)} — you can still leave one message.</span></div>`;
-    } else if (this.myClaim) {
-      html += `<div class="panel-note"><span>You already claimed another dot — this will be a message, not a claim.</span></div>`;
     }
 
-    html += this.renderContributionForm(coord, cell, mine);
+    if (canPost(Boolean(owner), Boolean(this.myClaim), Boolean(mine))) {
+      html += this.renderContributionForm(coord, cell, mine);
+    } else {
+      html += `<div class="panel-note"><span>This dot is unclaimed. You can only message dots that are already claimed — remove your claim first to claim a new dot.</span></div>`;
+    }
 
     return html;
   }
