@@ -64,7 +64,7 @@
 (()=>{
   /* ---- PNG assets (static images used to color the ASCII background) ---- */
   const PNGS=["images/12.png","images/11.png","images/13.png","images/13.png"];
-  const grayBoost=[330,210,180,30];
+  const grayBoost=[330,210,180,45];
   const gifCvs=PNGS.map(()=>{const c=document.createElement('canvas');c.width=120;c.height=90;return c;});
   const gifData=PNGS.map(()=>null);
   const gifBright=PNGS.map(()=>255);
