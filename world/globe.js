@@ -86,7 +86,7 @@ const MAX_RELIEF = 0.20;
 // Darkest a land dot may render. Unlit dots settle at a very dark grey instead
 // of black, so the continents never crack open into holes. Spikes still read the
 // true field, so they only grow on genuinely bright patches.
-const MIN_DOT_BRIGHT = 0.17;
+const MIN_DOT_BRIGHT = 0.25;
 
 export class Globe {
   constructor(canvas, ui) {
