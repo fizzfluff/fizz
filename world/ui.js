@@ -13,6 +13,7 @@ export class UI {
     this.selectedCell = null;
     this.user = null;
     this.myClaim = null;
+    this.claimsSupported = true;
   }
 
   async init(globe) {
@@ -46,7 +47,8 @@ export class UI {
   }
 
   // The one dot this browser has claimed, or null. Cached so opening a dot or
-  // publishing never needs an extra round trip.
+  // publishing never needs an extra round trip. If the database predates the
+  // is_claim column, claims are simply not enforced.
   async loadMyClaim() {
     try {
       const rows = await db.select(
@@ -54,6 +56,7 @@ export class UI {
       );
       this.myClaim = rows && rows[0] ? { lat: rows[0].lat, lon: rows[0].lon } : null;
     } catch (e) {
+      this.claimsSupported = false;
       console.error('Failed to load claim', e);
     }
   }
@@ -273,15 +276,16 @@ export class UI {
             { message, color: selectedColor }
           );
         } else {
-          await db.insert('contributions', {
+          const row = {
             lat: coord.lat,
             lon: coord.lon,
             user_id: this.user.id,
             username: this.user.username,
             message,
             color: selectedColor,
-            is_claim: claimThisDot,
-          });
+          };
+          if (this.claimsSupported) row.is_claim = claimThisDot;
+          await db.insert('contributions', row);
           if (claimThisDot) this.myClaim = { lat: coord.lat, lon: coord.lon };
         }
 
