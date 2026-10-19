@@ -6,7 +6,6 @@ export class UI {
     this.currentView = 'globe';
     this.selectedCell = null;
     this.user = null;
-    this.pollTimer = null;
   }
 
   async init(globe) {
@@ -14,7 +13,6 @@ export class UI {
     this.bindEvents();
     await this.loadIdentity();
     await this.loadInitialData();
-    this.startPolling();
   }
 
   bindEvents() {
@@ -56,13 +54,8 @@ export class UI {
     }
   }
 
-  // No socket on static hosting: poll instead.
-  startPolling() {
-    clearInterval(this.pollTimer);
-    this.pollTimer = setInterval(() => {
-      if (!document.hidden) this.refreshState();
-    }, 6000);
-  }
+  // Static hosting with a metered request quota: no live polling. State is
+  // fetched on load, when a cell is opened, and after a contribution is sent.
 
   switchView(view) {
     this.currentView = view;
