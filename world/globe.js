@@ -83,6 +83,11 @@ const LIFT = 0.11;
 const SPIKE_LIFT = 0.16;
 const MAX_RELIEF = 0.20;
 
+// Darkest a land dot may render. Unlit dots settle at a very dark grey instead
+// of black, so the continents never crack open into holes. Spikes still read the
+// true field, so they only grow on genuinely bright patches.
+const MIN_DOT_BRIGHT = 0.17;
+
 export class Globe {
   constructor(canvas, ui) {
     this.canvas = canvas;
@@ -725,15 +730,15 @@ export class Globe {
       if (p.z <= 0.03) continue;
       const ring = p.z > 0.62 ? 0 : p.z > 0.28 ? 1 : 2;
       const b = dotBrightness(dot, t, this.reduceMotion);
-      if (b <= 0.06) continue;
-      const level = Math.min(GLOW_LEVELS - 1, Math.floor(b * GLOW_LEVELS));
+      const rb = Math.max(MIN_DOT_BRIGHT, b);
+      const level = Math.min(GLOW_LEVELS - 1, Math.floor(rb * GLOW_LEVELS));
       const v = this.rawGlow(b);
       const s = this.spikeFor(dot, t, v);
-      const q = this.lifted(p, Math.min(MAX_RELIEF, LIFT * b + SPIKE_LIFT * s));
+      const q = this.lifted(p, Math.min(MAX_RELIEF, LIFT * rb + SPIKE_LIFT * s));
       land[ring][level].push(
         q.x,
         q.y,
-        dot.size * dot.gain * (0.45 + 0.75 * b) * (1 + 2 * s)
+        dot.size * dot.gain * (0.45 + 0.75 * rb) * (1 + 2 * s)
       );
       // Hill centres get a faint stem so the lift reads as height.
       if (s > 0.35) stems.push(p.x, p.y, q.x, q.y, 0.06 + 0.16 * b);
