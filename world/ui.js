@@ -286,10 +286,10 @@ export class UI {
           };
           if (this.claimsSupported) row.is_claim = claimThisDot;
           await db.insert('contributions', row);
-          if (claimThisDot) this.myClaim = { lat: coord.lat, lon: coord.lon };
+          if (this.claimsSupported && claimThisDot) this.myClaim = { lat: coord.lat, lon: coord.lon };
         }
 
-        this.toast(editing ? 'Message updated' : (claimThisDot ? 'Dot claimed' : 'Message published'));
+        this.toast(editing ? 'Message updated' : (this.claimsSupported && claimThisDot ? 'Dot claimed' : 'Message published'));
         await this.refreshPanel();
         this.refreshState();
         if (this.currentView === 'activity') this.renderActivity();
