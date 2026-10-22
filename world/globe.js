@@ -1,4 +1,4 @@
-// One dot per claimable cell: the lattice and the claim grid are the same.
+﻿// One dot per claimable cell: the lattice and the claim grid are the same.
 // Cell (lat, lon) is the 1 degree square whose centre is (lat + 0.5, lon + 0.5).
 export function buildLandCells(rings, step = 1) {
   const boxes = [];
@@ -261,7 +261,7 @@ export class Globe {
     const x = dot.x ?? 0, y = dot.y ?? 0, z = dot.z ?? 0;
     // World-fixed shape: a lit dot stays lit (only its height shakes). A slow
     // phase creeps the patch boundaries, so the active spikes keep reappearing
-    // in fresh places rather than living on the same cells forever — no panning.
+    // in fresh places rather than living on the same cells forever â€” no panning.
     const e =
       Math.sin(x * 9 + y * 7 + z * 5 + t * 0.4) *
         Math.sin(x * 7 - y * 11 + z * 6 - t * 0.25) +
@@ -278,7 +278,7 @@ export class Globe {
   }
 
   // Fibonacci spiral: equal spacing everywhere on the sphere, snapped to the
-  // 1° claim cells so each dot sits where a claim lands. No square grid, and
+  // 1Â° claim cells so each dot sits where a claim lands. No square grid, and
   // nothing bunches up at the poles.
   spiral(count, accept) {
     const golden = Math.PI * (3 - Math.sqrt(5));
@@ -484,7 +484,7 @@ export class Globe {
   cellAtPoint(px, py) {
     const r = Math.max(2, this.baseRadius() * 0.013);
     let best = null, bestD2 = r * r;
-    for (const dot of this.dots) {
+    for (const dot of this.dots ?? []) {
       if (!dot.painted) continue;
       const dx = dot.px - px, dy = dot.py - py;
       const d2 = dx * dx + dy * dy;
@@ -542,9 +542,13 @@ export class Globe {
   onTouchStart(e) {
     if (e.touches.length === 1) {
       this.isDragging = true;
+      // Track total finger movement so touchend can tell a tap from a slide.
+      this.dragDistance = 0;
+      this.touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       this.lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2) {
       this.isDragging = false;
+      this.wasPinching = true;
       this.initialPinchDist = this.getPinchDist(e);
       this.initialScale = this.targetScale;
     }
@@ -566,11 +570,19 @@ export class Globe {
   }
 
   onTouchEnd(e) {
-    if (e.changedTouches.length === 1 && !this.wasPinching) {
+    const touch = e.changedTouches[0];
+    // Only a tap counts: finger moved 6px or less from where it landed
+    // (same threshold as the mouse click). A slide rotates and must not select.
+    const merged = Math.abs((touch ? touch.clientX : 0) - (this.touchStart?.x ?? 0)) +
+                   Math.abs((touch ? touch.clientY : 0) - (this.touchStart?.y ?? 0));
+    if (e.changedTouches.length === 1 && !this.wasPinching &&
+        merged <= 6 && (this.dragDistance || 0) <= 6) {
       const rect = this.canvas.getBoundingClientRect();
-      const touch = e.changedTouches[0];
       this.selectAtPoint(touch.clientX - rect.left, touch.clientY - rect.top);
     }
+    // Block the synthesized mousedown/mouseup/click pair: its mousedown would
+    // reset dragDistance to 0 and mimic a clean tap after a big slide.
+    if (e.cancelable) e.preventDefault();
     this.isDragging = false;
     this.wasPinching = false;
   }
@@ -749,7 +761,7 @@ export class Globe {
 
     const stems = [];
 
-    for (const dot of this.dots) {
+    for (const dot of this.dots ?? []) {
       // Dots sit at the centre of their cell, exactly where a claim lands.
       const p = this.project(dot.lat + 0.5, dot.lon + 0.5);
       if (p.z <= 0.03) { dot.painted = false; continue; }
